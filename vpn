@@ -81,6 +81,7 @@ docker_ok() {
   w=$!
   wait "$p"; rc=$?
   kill "$w" 2>/dev/null
+  wait "$w" 2>/dev/null
   return "$rc"
 }
 
@@ -539,7 +540,7 @@ vigia_loop() {
 
 start_vigia() {
   net_signature > "$RUN/rede"
-  [ "${VPN_ESPERA:-}" != 0 ] && [ -z "${FAKE_LOG:-}" ] || return 0
+  [ -z "${VPN_SEM_VIGIA:-}" ] || return 0
   nohup "$VPN_HOME/vpn" _vigia >/dev/null 2>&1 &
   echo $! > "$RUN/vigia.pid"
 }

@@ -8,7 +8,7 @@ setup_env() {
   export VPN_DATA="$T/data" VPN_KC_SERVICE=vpn-pais-teste VPN_PROJECT=vpn-teste
   export FAKE_KC="$T/kc" FAKE_LOG="$T/log"
   export PATH="$ROOT/tests/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-  export VPN_ESPERA=0
+  export VPN_ESPERA=0 VPN_SEM_VIGIA=1
   unset FAKE_DOCKER_DOWN FAKE_DOCKER_HANG FAKE_RUNNING FAKE_HEALTH FAKE_PUBLICIP FAKE_NETSTAT FAKE_LOGS FAKE_KC_FAIL FAKE_SEM_REDE FAKE_COMPOSE_HANG
   mkdir -p "$VPN_DATA/secrets/ovpn" "$VPN_DATA/secrets/run" "$FAKE_KC"
   : > "$FAKE_LOG"

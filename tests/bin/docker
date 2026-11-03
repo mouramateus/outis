@@ -16,6 +16,8 @@ case "$1" in
   exec)
     case "$*" in
       *publicip*) printf '%s\n' "${FAKE_PUBLICIP:-{\"public_ip\":\"\"\}}" ;;
+      *ipinfo.io*) printf '%s\n' "${FAKE_IPINFO:-}" ;;
+      *ifconfig.co*) printf '%s\n' "${FAKE_IFCONFIG:-}" ;;
       *netstat*) printf '%s\n' "${FAKE_NETSTAT:-}" ;;
     esac ;;
   logs) printf '%s\n' "${FAKE_LOGS:-}" ;;

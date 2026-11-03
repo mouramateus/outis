@@ -273,7 +273,33 @@ active_container() { if [ "$1" = sotor ]; then echo "$GOST_CONTAINER"; else echo
 is_running() { [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = true ]; }
 health_of() { docker inspect -f '{{.State.Health.Status}}' "$1" 2>/dev/null || true; }
 tor_ready() { docker logs --tail 200 "$TOR_CONTAINER" 2>/dev/null | grep -q 'Bootstrapped 100'; }
-public_ip_json() { docker exec "$CONTAINER" wget -qO- -T 5 http://127.0.0.1:8000/v1/publicip/ip 2>/dev/null || true; }
+gluetun_ip_json() { docker exec "$CONTAINER" wget -qO- -T 5 http://127.0.0.1:8000/v1/publicip/ip 2>/dev/null || true; }
+started_at() { docker inspect -f '{{.State.StartedAt}}' "$CONTAINER" 2>/dev/null || true; }
+
+# IP de saída: o do gluetun ou, se ele desistiu (o túnel é lento logo após conectar), o guardado para esta conexão.
+public_ip_json() {
+  local j
+  j="$(gluetun_ip_json)"
+  if [ -n "$(printf '%s' "$j" | json_get public_ip)" ]; then printf '%s\n' "$j"; return; fi
+  [ -f "$RUN/saida.json" ] && [ "$(json_get started < "$RUN/saida.json")" = "$(started_at)" ] && cat "$RUN/saida.json"
+  return 0
+}
+
+# Consulta de dentro do túnel; a resposta só vale se trouxer um IP (limite de requisições devolve texto).
+buscar_ip() {
+  local url j ip
+  for url in https://ipinfo.io/json https://ifconfig.co/json; do
+    j="$(docker exec "$CONTAINER" wget -qO- -T 20 "$url" 2>/dev/null | tr -d '\n' || true)"
+    ip="$(printf '%s' "$j" | json_get ip)"
+    if [ -n "$ip" ]; then
+      printf '{"public_ip":"%s","city":"%s","country":"%s","started":"%s"}\n' "$ip" "$(js "$(printf '%s' "$j" | json_get city)")" "$(js "$(printf '%s' "$j" | json_get country)")" "$(started_at)" > "$RUN/saida.json"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ip_ok() { [ -n "$(public_ip_json | json_get public_ip)" ] || buscar_ip; }
 
 # Modo tor: conexões TCP que saem do gluetun pela rede do Docker só podem ir ao Tor (172.31.251.2:9050);
 # as que vêm de 172.31.251.1 são os celulares entrando. Qualquer outra = conexão direta = vazamento.
@@ -377,13 +403,12 @@ esperar() { # <vezes> <comando...>
 }
 
 health_ok() { [ "$(health_of "$CONTAINER")" = healthy ]; }
-ip_ok() { [ -n "$(public_ip_json | json_get public_ip)" ]; }
 
 start() {
   local m="$1" country="$2" saida="$3" ovpn="${4:-}" anterior
   anterior="$(cat "$RUN/modo" 2>/dev/null || true)"
   stop_vigia
-  rm -f "$RUN/erro.json" "$RUN/evento.txt"
+  rm -f "$RUN/erro.json" "$RUN/evento.txt" "$RUN/saida.json"
   prepare_tor_extra "$saida"
   case "$m" in
     sotor) prepare_gost; info "Conectando pelo Tor... pode levar até 2 min." ;;
@@ -413,7 +438,7 @@ start() {
     if [ "$m" = tor ] && ! tor_path_ok; then
       falhar fora_do_tor "A conexão com o Proton não passou pelo Tor; tudo foi desligado por segurança."
     fi
-    esperar "$ESPERA" ip_ok || info "Ainda sem o IP de saída; o gluetun continua tentando."
+    esperar 6 ip_ok || info "Ainda sem o IP de saída; o vigia continua tentando."
   fi
   start_vigia
   info "Conectada."
@@ -489,7 +514,8 @@ cmd_caminho() {
 
 # --- Vigia ---
 notify() {
-  [ "${VPN_NOTIFY:-}" = app ] && return 0
+  # Com o app aberto, é ele quem avisa (com o botão de religar); fechado, o aviso é daqui.
+  if [ "${VPN_NOTIFY:-}" = app ] && pgrep -x VPNPais >/dev/null 2>&1; then return 0; fi
   osascript -e "display notification \"$1\" with title \"VPN País\"" >/dev/null 2>&1 || true
 }
 
@@ -526,6 +552,7 @@ vigia_loop() {
           if [ "$m" = tor ] && ! tor_path_ok; then
             derrubar fora_do_tor "Conexão fora do Tor detectada: VPN desligada por segurança."; return
           fi
+          ip_ok || true
         elif [ "$doente" -ge "$limite" ]; then
           derrubar queda "A VPN caiu. Seu iPhone pode estar sem VPN."; return
         else
@@ -587,7 +614,8 @@ status_json() {
               estado=ligada; conferido=true
             fi
           fi
-          if [ "$estado" = ligada ] && [ -n "$pais_ip" ] && [ "$pais_ip" != "$pais" ]; then aviso=pais_diferente; fi
+          if [ "$estado" = ligada ] && [ -n "$pais_ip" ] && [ "$pais_ip" != "$pais" ] \
+            && [ "$(printf '%s' "$pais_ip" | tr '[:upper:]' '[:lower:]')" != "$cc" ]; then aviso=pais_diferente; fi
           ;;
       esac
     elif [ -n "$op" ] && [ "$op" = up ]; then

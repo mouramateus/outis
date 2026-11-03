@@ -64,12 +64,37 @@ so_tor_auto_sem_exitnodes() { export FAKE_RUNNING=true FAKE_LOGS='Bootstrapped 1
 ovpn_com_proxy_recusado() { creds; printf 'remote 1.1.1.1 443\nhttp-proxy 2.2.2.2 80\n' > "$VPN_DATA/secrets/ovpn/us-free-1.protonvpn.tcp.ovpn"; out="$($VPN up 2>&1)"; assert_contains "$out" recusado; assert_not_contains "$(cat "$FAKE_LOG")" " up "; }
 pais_sem_ovpn_nao_derruba() { creds; ligar_fake; out="$($VPN up mexico 2>&1)"; assert_contains "$out" "Sem arquivo .ovpn"; assert_not_contains "$(cat "$FAKE_LOG")" "compose"; assert_no_file "$VPN_DATA/secrets/run/erro.json"; }
 
+ip_de_reserva_quando_gluetun_falha() {
+  creds; ovpn us-free-1.protonvpn.tcp.ovpn; ligar_fake
+  export FAKE_PUBLICIP='{"public_ip":""}' FAKE_IPINFO='{"ip":"9.9.9.9","city":"Houston","country":"US"}'
+  VPN_ESPERA=1 $VPN up >/dev/null 2>&1
+  s="$(st)"; assert_eq "$(echo "$s" | jqr .estado)" ligada; assert_eq "$(echo "$s" | jqr .ip_saida)" 9.9.9.9; assert_eq "$(echo "$s" | jqr .cidade)" Houston; assert_eq "$(echo "$s" | jqr .aviso)" null
+}
+ip_de_reserva_segunda_opcao() {
+  creds; ovpn us-free-1.protonvpn.tcp.ovpn; ligar_fake
+  export FAKE_PUBLICIP='{"public_ip":""}' FAKE_IPINFO='Too Many Requests' FAKE_IFCONFIG='{"ip":"8.8.8.8","city":"Dallas","country":"United States"}'
+  VPN_ESPERA=1 $VPN up >/dev/null 2>&1
+  assert_eq "$(st | jqr .ip_saida)" 8.8.8.8
+}
+cache_de_outra_conexao_nao_vale() {
+  ligar_fake; export FAKE_PUBLICIP='{"public_ip":""}'
+  printf '%s\n' '{"public_ip":"7.7.7.7","started":"2020-01-01T00:00:00Z"}' > "$VPN_DATA/secrets/run/saida.json"
+  assert_eq "$(est)" conectando
+}
+vigia_completa_ip_faltando() {
+  vigia_prepara; export FAKE_PUBLICIP='{"public_ip":""}' FAKE_IPINFO='{"ip":"6.6.6.6","city":"X","country":"US"}'
+  $VPN _vigia
+  assert_eq "$(st | jqr .estado)" ligada
+}
+pais_em_codigo_nao_avisa() { ligar_fake; export FAKE_PUBLICIP='{"public_ip":"1.1.1.1","country":"US"}'; assert_eq "$(st | jqr .aviso)" null; }
+
 vigia_prepara() { ligar_fake; printf 'tor\n' > "$VPN_DATA/secrets/run/modo"; printf '192.168.1.52 192.168.1.254\n' > "$VPN_DATA/secrets/run/rede"; export VPN_VIGIA_UMA=1; }
 vigia_rede_mudou() { vigia_prepara; printf '10.0.0.2 10.0.0.1\n' > "$VPN_DATA/secrets/run/rede"; $VPN _vigia; s="$(FAKE_RUNNING= st)"; assert_eq "$(echo "$s" | jqr .motivo_codigo)" rede; assert_contains "$(cat "$FAKE_LOG")" "compose"; assert_contains "$(cat "$FAKE_LOG")" osascript; }
 vigia_sem_mudanca_nao_derruba() { vigia_prepara; $VPN _vigia; assert_not_contains "$(cat "$FAKE_LOG")" " down"; }
 vigia_queda() { vigia_prepara; export FAKE_RUNNING=false; $VPN _vigia; assert_eq "$(st | jqr .motivo_codigo)" queda; }
 vigia_fora_do_tor() { vigia_prepara; export FAKE_NETSTAT="$TOR_RUIM"; $VPN _vigia; assert_eq "$(FAKE_RUNNING= st | jqr .motivo_codigo)" fora_do_tor; }
 vigia_nao_saudavel_passa_do_limite() { vigia_prepara; export FAKE_HEALTH=unhealthy VPN_VIGIA_LIMITE=0; $VPN _vigia; assert_eq "$(FAKE_RUNNING= st | jqr .motivo_codigo)" queda; }
-vigia_app_sem_osascript() { vigia_prepara; export FAKE_RUNNING=false VPN_NOTIFY=app; $VPN _vigia; assert_not_contains "$(cat "$FAKE_LOG")" osascript; unset VPN_NOTIFY; }
+vigia_app_aberto_nao_duplica_aviso() { vigia_prepara; export FAKE_RUNNING=false VPN_NOTIFY=app FAKE_APP_ABERTO=1; $VPN _vigia; assert_not_contains "$(cat "$FAKE_LOG")" osascript; unset VPN_NOTIFY FAKE_APP_ABERTO; }
+vigia_app_fechado_avisa_sozinho() { vigia_prepara; export FAKE_RUNNING=false VPN_NOTIFY=app FAKE_APP_ABERTO=0; $VPN _vigia; assert_contains "$(cat "$FAKE_LOG")" osascript; unset VPN_NOTIFY FAKE_APP_ABERTO; }
 
-for f in orbstack_fechado orbstack_travado_responde_rapido sem_env_nao_morre sem_rede_nao_morre parada conectando_sem_health ligada_com_ip_e_caminho sem_ip_nao_e_ligada fora_do_tor_nao_e_ligada erro_vale_com_vpn_parada erro_nao_vence_tunel_saudavel pais_diferente_avisa credenciais_no_status operacao_exposta trava_recusa_segunda trava_orfa_e_removida trava_liberada_em_falha trava_liberada_em_sigterm erro_credenciais_tem_codigo etapas_impressas tor_usa_socks so_proton_exige_confirmacao so_proton_nao_fica_salvo so_tor_saida_fixa so_tor_auto_sem_exitnodes ovpn_com_proxy_recusado pais_sem_ovpn_nao_derruba vigia_rede_mudou vigia_sem_mudanca_nao_derruba vigia_queda vigia_fora_do_tor vigia_nao_saudavel_passa_do_limite vigia_app_sem_osascript; do t $f; done
+for f in ip_de_reserva_quando_gluetun_falha ip_de_reserva_segunda_opcao cache_de_outra_conexao_nao_vale vigia_completa_ip_faltando pais_em_codigo_nao_avisa orbstack_fechado orbstack_travado_responde_rapido sem_env_nao_morre sem_rede_nao_morre parada conectando_sem_health ligada_com_ip_e_caminho sem_ip_nao_e_ligada fora_do_tor_nao_e_ligada erro_vale_com_vpn_parada erro_nao_vence_tunel_saudavel pais_diferente_avisa credenciais_no_status operacao_exposta trava_recusa_segunda trava_orfa_e_removida trava_liberada_em_falha trava_liberada_em_sigterm erro_credenciais_tem_codigo etapas_impressas tor_usa_socks so_proton_exige_confirmacao so_proton_nao_fica_salvo so_tor_saida_fixa so_tor_auto_sem_exitnodes ovpn_com_proxy_recusado pais_sem_ovpn_nao_derruba vigia_rede_mudou vigia_sem_mudanca_nao_derruba vigia_queda vigia_fora_do_tor vigia_nao_saudavel_passa_do_limite vigia_app_aberto_nao_duplica_aviso vigia_app_fechado_avisa_sozinho; do t $f; done

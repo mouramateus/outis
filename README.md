@@ -1,34 +1,40 @@
 # VPN por país para o celular, rodando no Mac
 
-O celular conecta no Mac (app **Outline**) e sai na internet pelo **ProtonVPN grátis**, no país que você escolher no Mac.
-Tudo grátis: ProtonVPN Free (sem limite de dados), gluetun no OrbStack e o app Outline.
+O celular conecta no Mac (app **Outline**) e sai na internet por outro país, com **Tor** e **ProtonVPN grátis** rodando no Mac.
 
-Dois modos:
+Três caminhos:
 
-    rápido:  celular (Outline) ─▶ Mac :8388 (gluetun) ─WireGuard─▶ ProtonVPN ─▶ internet
-    --tor:   celular (Outline) ─▶ Mac :8388 (gluetun) ─▶ Tor ─OpenVPN TCP─▶ ProtonVPN ─▶ internet
+    Tor + Proton (padrão):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─OpenVPN TCP─▶ Proton ─▶ internet
+    Só Tor (experimental):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─▶ internet
+    Só Proton:              iPhone (Outline) ─▶ Mac :8388 ─▶ Proton ─▶ internet
 
-No modo `--tor` o Proton só vê um nó de saída do Tor, nunca o IP de casa; os sites veem um IP do Proton no país escolhido.
-Custo: fica lento (medido em 2026-11-03: ~95 KB/s e ~4 s para abrir uma página).
+No padrão, o Proton só vê um nó de saída do Tor, nunca o IP de casa, e os sites veem um IP do Proton no país escolhido. Custo: fica lento (medido em 2026-11-03: ~95 KB/s e ~4 s para abrir uma página).
 
-## Primeira vez
+**Só Proton** quebra o anonimato da conta para sempre: o Proton passa a ver o IP de casa. Por isso exige confirmação e vale para uma conexão só. Ele nunca foi testado com a conta real, de propósito.
 
-1. `./vpn setup`: gera a senha do celular e pede a chave WireGuard do Proton (opcional, só para o modo rápido).
-2. Modo `--tor`: crie a conta Proton pelo Tor Browser; no painel, pegue o usuário/senha **OpenVPN/IKEv2** e baixe os
-   arquivos OpenVPN (GNU/Linux, **TCP**, servidores grátis) em Downloads; depois `./vpn setup-tor`.
-3. `./vpn up eua` (rápido) ou `./vpn up eua --tor`
-3. `./vpn celular`: mostra a chave `ss://…` (e o QR code). Instale o **Outline** no celular, toque em **+**, cole a chave e conecte.
-4. Reserve um IP fixo para o Mac no roteador (DHCP), senão a chave muda quando o IP do Mac mudar.
+**Só Tor** não tem UDP: é experimental até ser testado com o Outline num iPhone de verdade.
 
-## Dia a dia
+## App
 
-    ./vpn up [país] [--tor|--rapido]   # liga (lembra o último país e modo)
-    ./vpn pais japao      # troca de país (reconecta em segundos); o celular continua no Outline
-    ./vpn paises          # países disponíveis
-    ./vpn status          # IP e país de saída
-    ./vpn down            # desliga
+    app/build.sh       # compila (Apple Silicon + Intel), embute o CLI e instala em /Applications
 
-Países grátis: eua, canada, mexico, holanda, suica, noruega, polonia, romenia, japao, singapura.
+O app **VPN País** (macOS 14 ou mais novo) tem janela e ícone na barra de menus, e usa o CLI embutido nele, sem depender do SSD. Só foi testado no macOS 27. Precisa do OrbStack e, para a conta, do Tor Browser. Na primeira abertura, permita as notificações.
+
+Fechar a janela ou sair (⌘Q) **não** desliga a VPN.
+
+## Terminal
+
+Dados e segredos ficam em `~/Library/Application Support/vpn-pais`; as credenciais OpenVPN, no Keychain.
+
+    ./vpn setup-tor                     # credenciais OpenVPN e .ovpn (GNU/Linux, TCP, servidores grátis)
+    ./vpn up eua                        # liga (lembra país e caminho)
+    ./vpn pais japao                    # troca de país, sem reiniciar o Tor
+    ./vpn up --so-tor [--saida de]      # Só Tor; --saida fixa o país de saída
+    ./vpn status                        # estado, IP e caminho conferido
+    ./vpn celular                       # chave e QR code para o Outline
+    ./vpn down                          # desliga
+
+Testes: `/bin/bash tests/run.sh` e `cd app && swift test`.
 
 ## O que está protegido (e o que não está)
 
@@ -45,7 +51,7 @@ Protegido, e conferido em 2026-11-03:
 - **O celular não tem kill switch próprio.** Se o Mac dormir, a VPN cair ou a rede mudar, o celular volta a navegar pela internet de casa.
   - Android: Configurações → VPN → Outline → ative "VPN sempre ativa" e "Bloquear conexões sem VPN".
   - iPhone: não há bloqueio garantido; confira o ícone do Outline antes de usar.
-- **Identidade:** o Proton só não vê seu IP se a conta for usada **exclusivamente pelo Tor** (cadastro, painel e conexões). Sem modo rápido com essa conta, sem abrir o painel num navegador comum.
+- **Identidade:** o Proton só não vê seu IP se a conta for usada **exclusivamente pelo Tor** (cadastro, painel e conexões). Sem Só Proton com essa conta, sem abrir o painel num navegador comum.
 - **O que o celular entrega por si só:** fuso horário, idioma, GPS e contas logadas continuam dizendo quem e onde você está. IPv6 do celular não foi testado.
 - Streaming (Netflix etc.) costuma bloquear IPs de VPN grátis. Modo Tor é lento (~95 KB/s).
 
@@ -53,11 +59,11 @@ Protegido, e conferido em 2026-11-03:
 
 | Sintoma | O que fazer |
 |---|---|
-| `Sem arquivo .ovpn de <país>` | Baixe o .ovpn TCP grátis desse país no painel e rode `./vpn setup-tor`. |
+| `Sem arquivo .ovpn de <país>` | Baixe o .ovpn TCP grátis desse país no painel (pelo Tor Browser) e importe. |
 | Modo `--tor` não conecta | O circuito do Tor pode estar ruim: rode o mesmo comando de novo (sorteia outro servidor). |
 | `A rede do Mac mudou: VPN desligada` | Normal ao trocar de Wi-Fi. Rode `./vpn up` de novo e, se o IP do Mac mudou, atualize a chave no Outline (`./vpn celular`). |
 | `Conexão fora do Tor detectada` | Algo tentou falar com o Proton sem o Tor; tudo foi desligado. Rode `./vpn up` de novo; se repetir, troque o arquivo .ovpn daquele país. |
-| `O túnel não conectou` | Chave do Proton errada ou revogada: gere outra e rode `./vpn setup --force`. |
+| `O túnel não conectou` | Tente de novo ou outro país. |
 | Celular conecta mas não navega | `./vpn status`; se o IP do Mac mudou, `./vpn celular` e troque a chave no Outline. |
-| Outro dispositivo já usa a conta Proton | O plano grátis permite 1 conexão: desconecte o outro. |
+| `Outro aparelho já usa sua conta` | O plano grátis permite 1 conexão: desconecte o outro. |
 | `./vpn logs` | Log do túnel, ao vivo. |

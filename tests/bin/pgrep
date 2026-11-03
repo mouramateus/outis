@@ -1,0 +1,2 @@
+#!/bin/bash
+[ "${FAKE_APP_ABERTO:-0}" = 1 ]

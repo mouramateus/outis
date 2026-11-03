@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>vpn-pais · mockups v4</title>
+<style>
+  :root {
+    --bg: #050506;
+    --glass: rgba(255,255,255,0.055);
+    --glass-strong: rgba(255,255,255,0.09);
+    --line: rgba(255,255,255,0.11);
+    --line-strong: rgba(255,255,255,0.22);
+    --text: #f2f2f3;
+    --muted: #a3a3a9;
+    --dim: #8d8d93; --deco: #3a3a40;
+    --on: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 700px at 20% -10%, #1d1d21 0%, transparent 60%),
+                radial-gradient(900px 600px at 110% 30%, #16161a 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+    padding: 48px 56px 96px;
+    min-height: 100vh;
+  }
+  h1 { font: 600 28px/1.2 -apple-system, "SF Pro Display", sans-serif; letter-spacing: -0.02em; }
+  h2 { font: 600 19px/1.3 -apple-system, "SF Pro Display", sans-serif; margin: 64px 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin-top: 6px; max-width: 760px; }
+  .q { margin-top: 14px; padding: 12px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: #c9c9ce; max-width: 760px; font-size: 13px; }
+  .q b { color: var(--text); }
+
+  .glass {
+    background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025));
+    border: 1px solid var(--line);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 20px 60px rgba(0,0,0,0.55);
+  }
+
+  /* Janela */
+  .window { width: 1040px; height: 640px; border-radius: 18px; overflow: hidden; position: relative; margin-top: 22px; display: flex; }
+  .titlebar { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; align-items: center; padding: 0 16px; gap: 8px; z-index: 5; }
+  .tl { width: 12px; height: 12px; border-radius: 50%; background: #3a3a3f; border: 1px solid rgba(255,255,255,0.08); }
+  .sidebar { width: 200px; padding: 56px 12px 16px; border-right: 1px solid var(--line); background: rgba(255,255,255,0.025); display: flex; flex-direction: column; gap: 4px; }
+  .nav { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: var(--muted); font-size: 13.5px; }
+  .nav.active { background: var(--glass-strong); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+  .nav svg { width: 16px; height: 16px; opacity: .9; }
+  .side-foot { margin-top: auto; padding: 12px; border-radius: 12px; font-size: 12px; color: var(--muted); }
+  .side-foot b { color: var(--text); font-weight: 500; display: block; font-size: 12.5px; }
+  .main { flex: 1; position: relative; background: radial-gradient(800px 500px at 50% 40%, #121215, #070708); }
+  #map { position: absolute; inset: 0; }
+  .chip { position: absolute; top: 14px; right: 16px; z-index: 6; padding: 7px 12px; border-radius: 999px; font-size: 12px; color: #cfcfd4; display: flex; gap: 8px; align-items: center; }
+  .chip .sep { width: 1px; height: 12px; background: var(--line-strong); }
+
+  .status-card { position: absolute; right: 18px; bottom: 18px; width: 372px; border-radius: 20px; padding: 20px; z-index: 6; }
+  .row { display: flex; align-items: center; justify-content: space-between; }
+  .state { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--on); box-shadow: 0 0 0 4px rgba(255,255,255,0.10), 0 0 18px rgba(255,255,255,0.75); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(255,255,255,0.04), 0 0 26px rgba(255,255,255,0.9); } }
+  .country { font: 600 30px/1.1 -apple-system, "SF Pro Display", sans-serif; letter-spacing: -0.02em; margin-top: 14px; }
+  .ip { color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: rgba(0,0,0,0.35); border: 1px solid var(--line); }
+  .seg span { padding: 5px 12px; border-radius: 8px; font-size: 12px; color: var(--muted); }
+  .seg span.on { background: rgba(255,255,255,0.14); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,0.15); }
+  .controls { display: flex; gap: 10px; margin-top: 18px; }
+  .select { flex: 1; padding: 10px 12px; border-radius: 11px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); display: flex; justify-content: space-between; color: #ddd; font-size: 13px; }
+  .power { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, #fff, #bdbdc2); color: #111; box-shadow: 0 0 24px rgba(255,255,255,0.35); }
+  .route { margin-top: 16px; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+  .route i { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-strong), rgba(255,255,255,0.05)); }
+  .route b { color: #d7d7dc; font-weight: 500; }
+
+  .legend { position: absolute; left: 18px; bottom: 22px; z-index: 6; padding: 12px 14px; border-radius: 14px; font-size: 11.5px; color: var(--muted); display: grid; gap: 6px; }
+  .legend div { display: flex; gap: 8px; align-items: center; }
+  .lg { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Barra de menus */
+  .menubar { width: 1040px; height: 30px; margin-top: 22px; border-radius: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 18px; padding: 0 16px; font-size: 13px; color: #d9d9de; }
+  .mb-icon { display: flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.12); }
+  .popwrap { display: flex; gap: 40px; align-items: flex-start; margin-top: 8px; }
+  .popover { width: 300px; border-radius: 16px; padding: 14px; margin-left: 640px; }
+  .pop-sec { padding: 10px 6px; border-bottom: 1px solid var(--line); }
+  .pop-sec:last-child { border-bottom: 0; }
+  .pop-item { display: flex; justify-content: space-between; padding: 6px; border-radius: 7px; font-size: 13px; color: #dcdce0; }
+  .pop-item span:last-child { color: var(--muted); }
+  .states { display: flex; gap: 14px; margin-top: 14px; }
+  .state-box { padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); }
+
+  /* Celular */
+  .grid2 { display: grid; grid-template-columns: 300px 1fr; gap: 22px; padding: 64px 28px 28px; width: 100%; }
+  .panel { border-radius: 18px; padding: 18px; }
+  .qr { width: 264px; height: 264px; border-radius: 14px; background: #f4f4f5; padding: 14px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid var(--line-strong); font-size: 13px; color: var(--text); }
+  .btn.primary { background: #f2f2f3; color: #0b0b0c; border-color: transparent; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; font-size: 13px; margin-top: 10px; }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  .dev { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 11px; background: rgba(0,0,0,0.25); border: 1px solid var(--line); margin-top: 8px; font-size: 13px; }
+  .dev small { color: var(--muted); }
+  .code { font: 12px ui-monospace, "SF Mono", monospace; color: #bdbdc3; word-break: break-all; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,0.35); border: 1px solid var(--line); margin-top: 12px; }
+  .warn { margin-top: 10px; padding: 9px 12px; border-radius: 10px; font-size: 12px; color: #e9e9ec; background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong); }
+
+  /* Assistente */
+  .wizard { padding: 64px 36px 28px; width: 100%; display: flex; flex-direction: column; }
+  .steps { display: flex; gap: 8px; }
+  .step { flex: 1; padding: 12px; border-radius: 12px; font-size: 12px; color: var(--muted); border: 1px solid var(--line); background: rgba(255,255,255,0.02); }
+  .step b { display: block; color: var(--dim); font-size: 11px; margin-bottom: 4px; letter-spacing: .06em; }
+  .step.done { color: #cfcfd4; } .step.done b { color: #9a9aa0; }
+  .step.cur { background: var(--glass-strong); color: var(--text); border-color: var(--line-strong); } .step.cur b { color: #fff; }
+  .wbody { margin-top: 26px; border-radius: 18px; padding: 26px; max-width: 640px; }
+  .field { margin-top: 14px; }
+  .field label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .input { padding: 11px 12px; border-radius: 10px; background: rgba(0,0,0,0.35); border: 1px solid var(--line); color: #cfcfd4; font-size: 13px; }
+  .found { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { padding: 4px 9px; border-radius: 999px; font-size: 11.5px; color: #d5d5da; background: rgba(255,255,255,0.07); border: 1px solid var(--line); }
+  .tag.miss { color: var(--dim); border-style: dashed; }
+
+  .scopecard b { color: var(--text); }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+  .cta { flex: 1; padding: 11px 14px; border-radius: 12px; background: #f2f2f3; color: #0b0b0c; font-weight: 600; font-size: 13px; text-align: center; }
+  .ghost { padding: 11px 14px; border-radius: 12px; background: rgba(255,255,255,0.08); border: 1px solid var(--line-strong); font-size: 13px; color: var(--text); text-align: center; }
+  .okline { margin-top: 10px; font-size: 12px; color: #e3e3e7; }
+  .selnote { margin-top: 12px; padding: 9px 12px; border-radius: 11px; background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong); font-size: 12.5px; color: #e9e9ec; }
+  .cards4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 22px; width: 1040px; }
+  .sc { border-radius: 20px; padding: 18px; position: relative; overflow: hidden; }
+  .sc .country { font-size: 22px; }
+  .sc p { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .dot.off { background: transparent; border: 1.5px solid var(--dim); box-shadow: none; animation: none; }
+  .dot.wait { background: #cfcfd4; box-shadow: none; animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .dot, .dot.wait { animation: none !important; } }
+  .stp { margin-top: 10px; display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); }
+  .stp .d { color: #e8e8ec; } .stp .n { color: #fff; font-weight: 600; }
+  .bar { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); margin-top: 10px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 38%; background: #e8e8ec; }
+  .opt { border-radius: 16px; padding: 16px; border: 1px solid var(--line); background: rgba(0,0,0,0.2); margin-top: 10px; }
+  .opt.on { border: 1.5px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.07); }
+  .opt h4 { font-size: 14.5px; display: flex; gap: 10px; align-items: center; }
+  .opt p { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .radio { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--dim); flex: none; }
+  .radio.on { border-color: #fff; box-shadow: inset 0 0 0 3px #111, inset 0 0 0 7px #fff; }
+  .pill { padding: 4px 10px; border-radius: 999px; font-size: 11px; color: #e2e2e6; border: 1px solid var(--line-strong); font-weight: 500; }
+  .warn.strong { border: 1.5px solid #fff; background: rgba(255,255,255,0.08); font-size: 12.5px; }
+  .notif { width: 400px; border-radius: 16px; padding: 14px 16px; margin-top: 22px; display: flex; gap: 12px; }
+  .appicon { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(160deg, #2a2a2e, #050506); border: 1px solid var(--line-strong); display: grid; place-items: center; flex: none; }
+</style>
+</head>
+<body>
+
+<h1>vpn-pais · app para Mac · v4</h1>
+<p class="sub">Visual da v1 com os refinamentos da v2, mais os seus ajustes. A linha do Tor no mapa agora se move de verdade. Tudo ainda é só visual.</p>
+
+<!-- 1 -->
+<h2>1 · Tela inicial: mapa-múndi (ligada, com o Japão selecionado)</h2>
+<p class="sub">Tocar num país do mapa só o seleciona (anel tracejado), e o cartão oferece "Conectar em Japão". O caminho do Tor é uma <b>simulação</b>: sorteia 3 países entre os que têm arquivo .ovpn e muda de tempos em tempos. Aqui ele troca a cada 7 s para você ver; no app, trocaria a cada conexão e a cada 10 min. O desligar agora é só o ícone.</p>
+<div class="window glass">
+  <div class="titlebar"><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+  <div class="sidebar"><div class="nav active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4"/></svg>Início</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4.5" y="1.5" width="7" height="13" rx="1.6"/><path d="M7 12.3h2"/></svg>Celular</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.8-2.8 2.8-4.2 5.2-4.2s4.4 1.4 5.2 4.2"/></svg>Conta</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>Avançado</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Logs</div><div class="side-foot glass scopecard"><b>Kill switch ativo</b>Se o túnel cair, o Mac bloqueia a saída pelo IP de casa.</div></div>
+  <div class="main">
+    <svg id="map1" viewBox="0 0 840 640" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="chip glass">Mac <b>192.168.1.52</b><span class="sep"></span>Wi-Fi<span class="sep"></span>1 conexão</div>
+    <div class="status-card glass">
+      <div class="row">
+        <div class="state"><span class="dot"></span>Ligada</div>
+        <span class="pill" title="Caminho conferido: o Proton só recebe conexões do Tor">✓ Tor + Proton conferido</span>
+      </div>
+      <div class="country">Estados Unidos</div>
+      <div class="ip">89.187.180.56 · Chicago · conferido há 2 min</div>
+      <div class="route"><b>iPhone</b><i></i><b>Mac</b><i></i>Tor ×3<i></i><b>Proton EUA</b><i></i>internet</div>
+      <div class="btn-row"><div class="cta">Conectar em Japão <span style="font-weight:400;opacity:.65">· ~2 min</span></div><div class="power" title="Desligar" aria-label="Desligar"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 1.8v5.4M4.4 3.9a5.4 5.4 0 1 0 7.2 0"/></svg></div></div>
+    </div>
+    <div class="legend glass">
+      <div><span class="lg" style="background:#fff;box-shadow:0 0 10px #fff"></span>país atual</div>
+      <div><span class="lg" style="border:1.5px dashed #fff"></span>selecionado (clique em Conectar)</div>
+      <div><span class="lg" style="background:#8d8d93"></span>disponível</div>
+      <div><span class="lg" style="border:1px dashed #8d8d93"></span>sem arquivo .ovpn</div>
+      <div><span class="lg" style="border:1px solid #c9c9ce"></span>Tor ×3 (simulação)</div>
+    </div>
+  </div>
+</div>
+<div class="q"><b>Para você responder:</b> é essa a tela da v1 que você gostou, agora com "selecionar e conectar"?</div>
+
+<!-- 2 -->
+<h2>2 · O cartão do canto nos outros estados</h2>
+<p class="sub">O mapa e o lugar do cartão continuam os mesmos, só o conteúdo muda. Desligada: o mapa fica sem linha e o país atual fica cinza. Conectando: a linha pisca.</p>
+<div class="cards4">
+  <div class="sc glass">
+    <div class="state"><span class="dot off"></span>Desligada</div>
+    <div class="country" style="margin-top:12px">EUA</div>
+    <p>Último país usado. O iPhone está sem VPN.</p>
+    <div class="btn-row"><div class="cta">Ligar em EUA</div></div>
+  </div>
+  <div class="sc glass">
+    <div class="state"><span class="dot wait"></span>Conectando</div>
+    <div class="country" style="margin-top:12px">Japão</div>
+    <div class="stp"><div class="d">✓ Tor conectado</div><div class="n">● Conectando ao Proton</div><div>○ Conferindo caminho e IP</div></div>
+    <div class="ip" style="margin-top:8px">0:42 · costuma levar até 2 min</div>
+    <div class="bar"><span></span></div>
+    <div class="btn-row"><div class="ghost" style="flex:1">Cancelar</div></div>
+  </div>
+  <div class="sc glass">
+    <div class="state"><span class="dot off"></span>Desligada</div>
+    <div class="country" style="margin-top:12px;font-size:19px">A rede do Mac mudou</div>
+    <p>A VPN desligou às 14:32 porque o Mac saiu da rede 192.168.1.x.</p>
+    <div class="btn-row"><div class="cta">Religar nesta rede</div></div>
+    <p style="font-size:11.5px">Depois de religar, atualize a chave no Outline (o IP do Mac mudou).</p>
+  </div>
+  <div class="sc glass">
+    <div class="state"><span class="dot off"></span>Erro</div>
+    <div class="country" style="margin-top:12px;font-size:19px">Credenciais recusadas</div>
+    <p>O Proton recusou o usuário ou a senha OpenVPN.</p>
+    <div class="btn-row"><div class="cta">Trocar credenciais</div></div>
+    <p style="font-size:11.5px">Outros erros, cada um com a sua ação: outro aparelho usando a conta grátis · Tor não conectou · conexão fora do Tor (tudo desligado) · OrbStack fechado.</p>
+  </div>
+</div>
+<div class="notif glass">
+  <div class="appicon"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.1"><circle cx="8" cy="8" r="6.3"/><path d="M1.7 8h12.6M8 1.7c2.1 2 2.1 10.6 0 12.6M8 1.7c-2.1 2-2.1 10.6 0 12.6"/></svg></div>
+  <div style="flex:1"><div style="font-weight:600;font-size:13px">VPN País</div><div style="font-size:12.5px;color:#dcdce0">A rede mudou: VPN desligada. Seu iPhone pode estar sem VPN.</div>
+  <div style="display:flex;gap:8px;margin-top:10px"><div class="ghost" style="padding:6px 12px;font-size:12px">Religar nesta rede</div><div class="ghost" style="padding:6px 12px;font-size:12px">Fechar</div></div></div>
+</div>
+
+<!-- 3 -->
+<h2>3 · Barra de menus</h2>
+<p class="sub">Mesmo globo da v1, monocromático. O menu ficou mínimo: estado, país, o ícone de desligar e um ícone para abrir o app, onde ficam as configurações.</p>
+<div class="menubar glass">
+  <span style="color:var(--muted)">Ter. 3 de nov. 14:10</span>
+  <span class="mb-icon"><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#fff"/><path d="M1.5 8h13M8 1.5c2.2 2 2.2 11 0 13M8 1.5c-2.2 2-2.2 11 0 13" stroke="#111" stroke-width="1.1" fill="none"/></svg>US</span>
+</div>
+<div class="popwrap">
+  <div class="popover glass">
+    <div class="pop-sec">
+      <div class="state" style="font-size:12px"><span class="dot"></span>Ligada · Tor + Proton</div>
+      <div style="font-size:17px;font-weight:600;margin-top:8px">Estados Unidos</div>
+      <div class="ip" style="font-size:12.5px">89.187.180.56 · Chicago</div>
+    </div>
+    <div class="pop-sec" style="border:0">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="select" style="padding:9px 12px">EUA <span>▾</span></div>
+        <div class="power" style="width:40px;height:40px" title="Desligar" aria-label="Desligar"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 1.8v5.4M4.4 3.9a5.4 5.4 0 1 0 7.2 0"/></svg></div>
+        <div class="power" title="Abrir o app" aria-label="Abrir o app" style="background:rgba(255,255,255,0.1);color:#f2f2f3;box-shadow:none;border:1px solid var(--line-strong);width:40px;height:40px"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6h12"/></svg></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="states">
+  <div class="state-box glass"><svg width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#fff"/><path d="M1.5 8h13M8 1.5c2.2 2 2.2 11 0 13M8 1.5c-2.2 2-2.2 11 0 13" stroke="#111" stroke-width="1.1" fill="none"/></svg>Ligada</div>
+  <div class="state-box glass"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.2"><circle cx="8" cy="8" r="6.5" stroke-opacity=".35"/><path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" stroke-width="1.8"/></svg>Conectando…</div>
+  <div class="state-box glass"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#a3a3a9" stroke-width="1.2"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c2.2 2 2.2 11 0 13M8 1.5c-2.2 2-2.2 11 0 13"/></svg>Desligada</div>
+  <div class="state-box glass"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.2"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v4.2M8 11v.4" stroke-width="1.6" stroke-linecap="round"/></svg>Erro</div>
+</div>
+
+<!-- 4 -->
+<h2>4 · Aba Celular</h2>
+<p class="sub">Layout da v1. Saiu "Salvar imagem", entrou o aviso do iPhone, e a lista agora se chama "Conexões ativas", porque o Mac vê conexões, não aparelhos.</p>
+<div class="window glass" style="height:560px">
+  <div class="titlebar"><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+  <div class="sidebar"><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4"/></svg>Início</div><div class="nav active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4.5" y="1.5" width="7" height="13" rx="1.6"/><path d="M7 12.3h2"/></svg>Celular</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.8-2.8 2.8-4.2 5.2-4.2s4.4 1.4 5.2 4.2"/></svg>Conta</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>Avançado</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Logs</div><div class="side-foot glass scopecard"><b>Kill switch ativo</b>Se o túnel cair, o Mac bloqueia a saída pelo IP de casa.</div></div>
+  <div class="main" style="display:flex">
+    <div class="grid2">
+      <div class="panel glass">
+        <div class="qr"><svg id="qr" viewBox="0 0 29 29" width="236" height="236" shape-rendering="crispEdges"></svg></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><div class="btn primary">Copiar chave</div></div>
+        <div class="code">ss://Y2hhY2hhMjAt…@192.168.1.52:8388#Mac-VPN</div>
+        <div style="color:var(--dim);font-size:11.5px;margin-top:8px">Leia com a câmera do iPhone e abra no Outline. Evite mandar a chave por mensagem.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="panel glass">
+          <div style="font-weight:600">Como conectar</div>
+          <div style="color:var(--muted);font-size:13px;margin-top:6px">1. Instale o <b style="color:#ddd">Outline</b> no iPhone · 2. Leia o QR (ou cole a chave) · 3. Conecte.</div>
+          <div class="kv"><span>IP do Mac</span><span>192.168.1.52 · porta 8388</span><span>Rede</span><span>Wi-Fi (a porta só abre nesta rede)</span></div>
+          <div class="warn"><b>iPhone:</b> ele não bloqueia a internet quando a VPN cai. Se o Mac dormir ou mudar de rede, o iPhone volta para a internet de casa sem avisar. Antes de usar, confira o ícone "VPN" no topo do iPhone.</div>
+        </div>
+        <div class="panel glass">
+          <div class="row"><div style="font-weight:600">Conexões ativas</div><small style="color:var(--muted)">agora</small></div>
+          <div class="dev"><span>192.168.1.40</span><small>ativa agora</small></div>
+          <div style="color:var(--dim);font-size:11.5px;margin-top:10px">Uma conexão continua listada por 3 min depois da última atividade.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5 -->
+<h2>5 · Aba Conta (já configurada)</h2>
+<p class="sub">Layout da v1. Como você já configurou, a aba mostra só o resumo. O assistente, agora com 3 passos (credenciais, arquivos .ovpn e Tor Browser), aparece apenas quando falta algo.</p>
+<div class="window glass" style="height:460px">
+  <div class="titlebar"><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+  <div class="sidebar"><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4"/></svg>Início</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4.5" y="1.5" width="7" height="13" rx="1.6"/><path d="M7 12.3h2"/></svg>Celular</div><div class="nav active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.8-2.8 2.8-4.2 5.2-4.2s4.4 1.4 5.2 4.2"/></svg>Conta</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>Avançado</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Logs</div><div class="side-foot glass scopecard"><b>Kill switch ativo</b>Se o túnel cair, o Mac bloqueia a saída pelo IP de casa.</div></div>
+  <div class="main" style="display:flex">
+    <div class="wizard">
+      <div class="wbody glass" style="margin-top:0">
+        <div class="row"><div style="font-weight:600;font-size:16px">Conta ProtonVPN Free</div><span class="pill">✓ credenciais salvas</span></div>
+        <div style="color:var(--muted);font-size:13px;margin-top:6px">Usada só pelo Tor. Abra o painel do Proton apenas pelo Tor Browser.</div>
+        <div class="found">
+          <span class="tag">🇺🇸 3</span><span class="tag">🇨🇦 4</span><span class="tag">🇳🇱 3</span><span class="tag">🇨🇭 2</span><span class="tag">🇳🇴 2</span><span class="tag">🇵🇱 1</span><span class="tag">🇷🇴 2</span><span class="tag">🇯🇵 3</span><span class="tag">🇸🇬 2</span><span class="tag miss">🇲🇽 0</span>
+        </div>
+        <div style="color:var(--dim);font-size:11.5px;margin-top:8px">Arquivos .ovpn por país</div>
+        <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap"><div class="btn">Trocar credenciais</div><div class="btn">Importar .ovpn…</div><div class="btn">Painel do Proton (Tor Browser) ↗</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 6 -->
+<h2>6 · Aba Avançado</h2>
+<p class="sub">Layout da v1. O caminho padrão vem marcado. "Só Proton" exige digitar ENTENDO.</p>
+<div class="window glass" style="height:800px">
+  <div class="titlebar"><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+  <div class="sidebar"><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4"/></svg>Início</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4.5" y="1.5" width="7" height="13" rx="1.6"/><path d="M7 12.3h2"/></svg>Celular</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.8-2.8 2.8-4.2 5.2-4.2s4.4 1.4 5.2 4.2"/></svg>Conta</div><div class="nav active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>Avançado</div><div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Logs</div><div class="side-foot glass scopecard"><b>Kill switch ativo</b>Se o túnel cair, o Mac bloqueia a saída pelo IP de casa.</div></div>
+  <div class="main" style="display:flex">
+    <div class="wizard" style="overflow:hidden">
+      <div style="font-weight:600;font-size:16px">Caminho do celular</div>
+      <div class="opt on"><h4><span class="radio on"></span>Tor + Proton <span class="pill">padrão · recomendado</span></h4>
+        <p>iPhone → Mac → Tor → Proton → internet. Você escolhe o país, e o Proton não vê o seu IP. É lento (~95 KB/s).</p></div>
+      <div class="opt"><h4><span class="radio"></span>Só Tor (sem VPN)</h4>
+        <p>iPhone → Mac → Tor → internet. Não usa a conta do Proton e continua anônimo, mas muitos sites bloqueiam IPs do Tor.</p>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--muted)">País de saída: <span class="input" style="display:inline-block;padding:7px 12px">Tor escolhe (padrão) ▾</span></div>
+        <p style="font-size:11.5px">Fixar um país restringe os nós de saída: fica um pouco menos anônimo e pode ficar mais lento.</p></div>
+      <div class="opt"><h4><span class="radio"></span>Só Proton (sem Tor)</h4>
+        <p>iPhone → Mac → Proton → internet. É bem mais rápido.</p>
+        <div class="warn strong">⚠︎ O Proton passa a ver o IP da sua casa ligado à sua conta anônima. Isso não tem volta: mesmo voltando para o Tor, a conta continua ligada a você. Para usar, digite <b>ENTENDO</b>:
+          <div style="margin-top:8px;display:flex;gap:8px"><span class="input" style="padding:7px 12px">ENTENDO</span><span class="btn">Ativar mesmo assim</span></div></div></div>
+      <div style="font-weight:600;font-size:16px;margin-top:20px">Outras opções</div>
+      <div class="kv" style="grid-template-columns:200px 1fr"><span>Porta do celular</span><span>8388</span><span>Ao trocar de rede</span><span>desliga tudo (fixo, por segurança)</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LAND = {
+  80:[[-70,-20],[10,30],[50,100]], 75:[[-120,-70],[-70,-20],[60,140]], 70:[[-165,-140],[-140,-60],[-55,-20],[20,180]],
+  65:[[-165,-140],[-140,-60],[-50,-35],[-25,-15],[10,30],[30,180]], 60:[[-160,-140],[-135,-65],[-50,-40],[5,30],[30,165]],
+  55:[[-130,-60],[-8,0],[5,40],[40,160]], 50:[[-125,-55],[-5,0],[0,140],[140,145]], 45:[[-125,-65],[-5,45],[45,135],[140,145]],
+  40:[[-125,-75],[-10,0],[10,45],[45,120],[125,130],[135,142]], 35:[[-120,-80],[-10,15],[35,50],[50,70],[75,120],[130,140]],
+  30:[[-115,-80],[-115,-105],[-10,32],[35,50],[50,70],[70,120]], 25:[[-110,-97],[-82,-80],[-15,35],[37,57],[62,90],[95,120],[120,122]],
+  20:[[-105,-87],[-85,-75],[-17,38],[40,58],[70,87],[92,110]], 15:[[-92,-84],[-17,40],[43,50],[74,80],[95,108],[120,125]],
+  10:[[-86,-77],[-73,-60],[-15,50],[76,80],[98,106],[122,126]], 5:[[-77,-52],[-10,48],[100,104],[110,118]],
+  0:[[-80,-50],[9,42],[98,105],[109,118],[120,125]], "-5":[[-80,-35],[12,40],[105,115],[132,150]],
+  "-10":[[-78,-35],[13,40],[130,150]], "-15":[[-75,-38],[12,40],[44,50],[125,145]], "-20":[[-70,-40],[13,35],[44,48],[115,150]],
+  "-25":[[-70,-47],[15,33],[113,153]], "-30":[[-71,-50],[17,31],[115,153]], "-35":[[-72,-55],[18,25],[117,150]],
+  "-40":[[-73,-62],[145,148],[172,178]], "-45":[[-75,-65],[167,172]], "-50":[[-75,-68]], "-55":[[-72,-66]]
+};
+const W = 840, H = 640, LAT_TOP = 84, LAT_BOT = -60;
+const px = (lat, lon) => [(lon + 180) / 360 * W, (LAT_TOP - lat) / (LAT_TOP - LAT_BOT) * H];
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const C = { us:[41.9,-87.6,'EUA'], ca:[45.5,-73.6,'Canadá'], mx:[19.4,-99.1,'México'], nl:[52.4,4.9,'Holanda'], ch:[46.9,7.4,'Suíça'],
+  no:[59.9,10.7,'Noruega'], pl:[52.2,21,'Polônia'], ro:[44.4,26.1,'Romênia'], jp:[35.7,139.7,'Japão'], sg:[1.35,103.8,'Singapura'] };
+// rótulos deslocados para não se sobreporem na Europa
+const OFF = { nl:[-52,-8], ch:[-30,16], pl:[8,-8], ro:[8,12], no:[8,-6], ca:[8,-8], us:[-28,-12], jp:[-118,-12], sg:[-62,-8] };
+function drawMap(id, cur, sel) {
+  const svg = document.getElementById(id); let d = '';
+  for (let lat = 82.5; lat >= -57.5; lat -= 2.5) {
+    const band = LAND[Math.round(lat / 5) * 5] || [];
+    for (let lon = -178.75; lon <= 180; lon += 2.5)
+      if (band.some(([a, b]) => lon >= a && lon <= b)) { const [x, y] = px(lat, lon); d += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.5" fill="#38383e"/>`; }
+  }
+  svg.innerHTML = d;
+  const home = px(-15.8, -47.9);
+  svg.appendChild(el('circle', { cx: home[0], cy: home[1], r: 3.5, fill: '#a3a3a9' }));
+  const ht = el('text', { x: home[0] + 9, y: home[1] + 4, fill: '#c9c9ce', 'font-size': 11.5 }); ht.textContent = 'seu Mac'; svg.appendChild(ht);
+  const route = el('g', {}); svg.appendChild(route);
+  const end = px(C[cur][0], C[cur][1]);
+  // Simulação: 3 países sorteados entre os que têm .ovpn, sem repetir e sem o país atual.
+  const sorteia = () => {
+    const pool = Object.keys(C).filter(k => k !== 'mx' && k !== cur);
+    const out = [];
+    while (out.length < 3) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return out;
+  };
+  const desenha = () => {
+    const hops = sorteia().map(k => px(C[k][0], C[k][1]));
+    const pts = [home, ...hops, end];
+    const path = pts.map((p, i) => {
+      if (!i) return `M${p[0]},${p[1]}`;
+      const q = pts[i - 1], dx = p[0] - q[0], dy = p[1] - q[1], len = Math.hypot(dx, dy);
+      return `Q${(q[0] + p[0]) / 2 - dy * 0.16},${(q[1] + p[1]) / 2 + dx * 0.16 - len * 0.04} ${p[0]},${p[1]}`;
+    }).join(' ');
+    route.innerHTML = '';
+    route.appendChild(el('path', { d: path, fill: 'none', stroke: 'rgba(255,255,255,0.16)', 'stroke-width': 1.2 }));
+    const flow = el('path', { d: path, fill: 'none', stroke: '#fff', 'stroke-width': 1.6, 'stroke-dasharray': '6 340', 'stroke-linecap': 'round', opacity: .9 });
+    flow.innerHTML = '<animate attributeName="stroke-dashoffset" from="346" to="0" dur="3.2s" repeatCount="indefinite"/>';
+    route.appendChild(flow);
+    hops.forEach(([x, y]) => route.appendChild(el('circle', { cx: x, cy: y, r: 7, fill: 'none', stroke: '#c9c9ce', 'stroke-width': 1 })));
+  };
+  desenha();
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(desenha, 7000);
+  for (const k in C) {
+    const [x, y] = px(C[k][0], C[k][1]); const on = k === cur, s = k === sel, miss = k === 'mx';
+    svg.appendChild(el('circle', { cx: x, cy: y, r: 14, fill: 'transparent' })); // área de clique
+    if (on) svg.appendChild(el('circle', { cx: x, cy: y, r: 12, fill: 'rgba(255,255,255,0.08)' }));
+    if (s) svg.appendChild(el('circle', { cx: x, cy: y, r: 9, fill: 'none', stroke: '#fff', 'stroke-width': 1.4, 'stroke-dasharray': '3 2.5' }));
+    if (miss) svg.appendChild(el('circle', { cx: x, cy: y, r: 3.6, fill: 'none', stroke: '#8d8d93', 'stroke-width': 1, 'stroke-dasharray': '2 1.6' }));
+    else svg.appendChild(el('circle', { cx: x, cy: y, r: on ? 4.5 : 3.4, fill: on || s ? '#fff' : '#8d8d93', style: on ? 'filter:drop-shadow(0 0 6px #fff)' : '' }));
+    const [ox, oy] = OFF[k] || [8, -7];
+    const t = el('text', { x: x + ox, y: y + oy, fill: on || s ? '#fff' : '#a3a3a9', 'font-size': on || s ? 12 : 11, 'font-weight': on || s ? 600 : 400 });
+    t.textContent = C[k][2] + (miss ? ' · sem .ovpn' : '') + (s ? ' · selecionado' : ''); svg.appendChild(t);
+  }
+}
+drawMap('map1', 'us', 'jp');
+const qr = document.getElementById('qr'); let q = '';
+const finder = (ox, oy) => { for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) { const on = x === 0 || y === 0 || x === 6 || y === 6 || (x > 1 && x < 5 && y > 1 && y < 5); if (on) q += `<rect x="${ox + x}" y="${oy + y}" width="1" height="1" fill="#0b0b0c"/>`; } };
+let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+for (let y = 0; y < 29; y++) for (let x = 0; x < 29; x++) { const inF = (x < 8 && y < 8) || (x > 20 && y < 8) || (x < 8 && y > 20); if (!inF && rnd() > 0.52) q += `<rect x="${x}" y="${y}" width="1" height="1" fill="#0b0b0c"/>`; }
+finder(0, 0); finder(22, 0); finder(0, 22); qr.innerHTML = q;
+</script>
+</body>
+</html>

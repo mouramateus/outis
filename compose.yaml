@@ -1,0 +1,39 @@
+# VPN de saída por país para o celular: o celular entra no Mac por Shadowsocks (app Outline)
+# e o gluetun manda tudo pelo ProtonVPN grátis. Se o túnel cair, o gluetun bloqueia (kill switch).
+# Versão fixada por digest (a mesma do torrserver).
+name: vpn-pais
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+    container_name: vpn-pais
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      VPN_SERVICE_PROVIDER: "${VPN_PROVIDER:-protonvpn}"
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY:-}"
+      FREE_ONLY: "${FREE_ONLY:-on}"
+      SERVER_COUNTRIES: "${VPN_COUNTRY:-United States}"
+      SHADOWSOCKS: "on"
+      SHADOWSOCKS_LISTENING_ADDRESS: ":8388"
+      SHADOWSOCKS_CIPHER: chacha20-ietf-poly1305
+      SHADOWSOCKS_PASSWORD: "${SS_PASSWORD:?rode ./vpn setup}"
+      DNS_UPSTREAM_IPV6: "off"
+      BLOCK_MALICIOUS: "on"
+      PUBLICIP_ENABLED: "off"
+      VERSION_INFORMATION: "off"
+      HTTP_CONTROL_SERVER_ADDRESS: "127.0.0.1:8000"
+      TZ: America/Sao_Paulo
+    ports:
+      - "${SS_BIND:?use ./vpn up}:${SS_PORT:-8388}:8388/tcp"
+      - "${SS_BIND:?use ./vpn up}:${SS_PORT:-8388}:8388/udp"
+    restart: "no"
+
+# Mesma rede do compose-tor.yaml, para alternar de modo sem conflito.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.251.0/28

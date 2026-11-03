@@ -1,0 +1,6 @@
+# Primeiro salto: só o gluetun (rede interna do compose) usa este SOCKS.
+SocksPort 0.0.0.0:9050
+SocksPolicy accept 172.31.251.0/28
+SocksPolicy reject *
+DataDirectory /var/lib/tor
+Log notice stdout

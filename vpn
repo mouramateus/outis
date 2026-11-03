@@ -1,0 +1,403 @@
+#!/usr/bin/env bash
+# vpn: o celular sai pela internet de outro país, via ProtonVPN grátis rodando no Mac. Uso: ./vpn help
+
+VPN_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Dados (configuração e segredos) no disco interno, onde as permissões valem; o código fica no SSD.
+VPN_DATA="${VPN_DATA:-$HOME/Library/Application Support/vpn-pais}"
+ENV_FILE="$VPN_DATA/.env"
+SECRETS="$VPN_DATA/secrets"
+export VPN_DATA
+
+# Uma vez: traz .env e secrets/ da pasta do código (SSD) para o disco interno, e só então apaga a origem.
+migrar_dados() {
+  [ -e "$VPN_HOME/.env" ] || [ -e "$VPN_HOME/secrets" ] || return 0
+  [ "$VPN_DATA" != "$VPN_HOME" ] || return 0
+  (umask 077; mkdir -p "$SECRETS")
+  chmod 700 "$VPN_DATA" "$SECRETS"
+  if [ -e "$VPN_HOME/.env" ] && [ ! -e "$ENV_FILE" ]; then
+    cp -p "$VPN_HOME/.env" "$ENV_FILE" && cmp -s "$VPN_HOME/.env" "$ENV_FILE" && rm -f "$VPN_HOME/.env"
+  fi
+  if [ -d "$VPN_HOME/secrets" ]; then
+    cp -Rp "$VPN_HOME/secrets/." "$SECRETS/" && diff -rq "$VPN_HOME/secrets" "$SECRETS" >/dev/null && rm -rf "$VPN_HOME/secrets"
+  fi
+  chmod -R go-rwx "$VPN_DATA"
+}
+CONTAINER=vpn-pais
+
+usage() {
+  cat <<'EOF'
+Uso: ./vpn <comando>
+
+  setup [--force]        configuração inicial (senha do celular; chave WireGuard opcional)
+  setup-tor              guarda as credenciais OpenVPN e os .ovpn do Proton (modo --tor)
+  up [país] [--tor|--rapido]
+                         liga (padrão: último país e último modo)
+                           --rapido  Mac -> ProtonVPN (WireGuard), rápido
+                           --tor     Mac -> Tor -> ProtonVPN (OpenVPN TCP), anônimo e lento
+  pais <país>            troca o país, mantendo o modo
+  paises                 lista os países grátis
+  status                 modo, IP e país de saída
+  celular                chave e QR code para o app Outline
+  down                   desliga
+  logs                   log do túnel
+EOF
+}
+
+die() { printf 'Erro: %s\n' "$*" >&2; exit 1; }
+info() { printf '%s\n' "$*"; }
+
+need_docker() {
+  docker info >/dev/null 2>&1 && return
+  info "Abrindo o OrbStack..."
+  open -a OrbStack 2>/dev/null || die "OrbStack não encontrado."
+  local i
+  for i in $(seq 1 30); do docker info >/dev/null 2>&1 && return; sleep 2; done
+  die "O OrbStack não respondeu. Abra-o e tente de novo."
+}
+
+need_env() { [ -f "$ENV_FILE" ] || die "Rode ./vpn setup primeiro."; }
+
+env_get() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2-; }
+
+env_set() {
+  local tmp
+  tmp="$(mktemp)"
+  grep -vE "^$1=" "$ENV_FILE" > "$tmp" || true
+  printf '%s=%s\n' "$1" "$2" >> "$tmp"
+  mv "$tmp" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+}
+
+mode() { local m; m="$(env_get VPN_MODE)"; printf '%s\n' "${m:-rapido}"; }
+
+compose_file() {
+  case "$1" in
+    tor) printf '%s\n' "$VPN_HOME/compose-tor.yaml" ;;
+    *)   printf '%s\n' "$VPN_HOME/compose.yaml" ;;
+  esac
+}
+
+# compose <modo> <args...>: credenciais só no ambiente do compose (viram arquivos em /run/secrets,
+# fora do `docker inspect`); a porta do celular fica presa ao IP do Mac na rede atual.
+compose() {
+  local m="$1" bind; shift
+  bind="$(mac_ip 2>/dev/null)" || bind=127.0.0.1
+  if [ "$m" = tor ] && [ -f "$SECRETS/openvpn-auth.txt" ]; then
+    SS_BIND="$bind" \
+    OPENVPN_USER="$(sed -n 1p "$SECRETS/openvpn-auth.txt")" \
+    OPENVPN_PASSWORD="$(sed -n 2p "$SECRETS/openvpn-auth.txt")" \
+      docker compose -p vpn-pais -f "$(compose_file tor)" --env-file "$ENV_FILE" "$@"
+  else
+    SS_BIND="$bind" OPENVPN_USER=x OPENVPN_PASSWORD=x \
+      docker compose -p vpn-pais -f "$(compose_file "$m")" --env-file "$ENV_FILE" "$@"
+  fi
+}
+
+# Países com servidores grátis do ProtonVPN: apelido:nome no gluetun:prefixo dos .ovpn
+PAISES="eua:United States:us
+canada:Canada:ca
+mexico:Mexico:mx
+holanda:Netherlands:nl
+suica:Switzerland:ch
+noruega:Norway:no
+polonia:Poland:pl
+romenia:Romania:ro
+japao:Japan:jp
+singapura:Singapore:sg"
+
+country_of() {
+  local key
+  key="$(printf '%s' "$1" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr -d "'\"^~\`" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+  case "$key" in
+    us|usa|estadosunidos|unitedstates) key=eua ;;
+    nl|paisesbaixos|netherlands) key=holanda ;;
+    ch|switzerland) key=suica ;;
+    jp|japan) key=japao ;;
+    sg|singapore) key=singapura ;;
+  esac
+  printf '%s\n' "$PAISES" | awk -F: -v k="$key" '$1 == k { print $2 }'
+}
+
+code_of() { printf '%s\n' "$PAISES" | awk -F: -v c="$1" '$2 == c { print $3 }'; }
+
+mac_ifc() { route -n get default 2>/dev/null | awk '/interface:/ { print $2 }'; }
+
+mac_ip() {
+  local ifc ip
+  ifc="$(mac_ifc)"
+  ip="$(ipconfig getifaddr "${ifc:-en0}" 2>/dev/null || true)"
+  [ -n "$ip" ] || ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
+  [ -n "$ip" ] || die "Não consegui descobrir o IP do Mac na rede local."
+  printf '%s\n' "$ip"
+}
+
+cmd_setup() {
+  local key pass
+  if [ -f "$ENV_FILE" ] && [ "${1:-}" != --force ]; then
+    info "Já configurado (.env existe). Para refazer: ./vpn setup --force"
+    return
+  fi
+  cat <<'EOF'
+Modo rápido (opcional): chave WireGuard do ProtonVPN.
+  No painel (https://account.protonvpn.com): Downloads > WireGuard configuration,
+  plataforma Router, um servidor grátis, Create; copie o valor de "PrivateKey = ...".
+  Para usar só o modo --tor, deixe em branco (credenciais: ./vpn setup-tor).
+EOF
+  printf '\nPrivateKey (Enter para pular): '
+  IFS= read -r key || true
+  key="$(printf '%s' "$key" | sed -E 's/^[[:space:]]*(PrivateKey[[:space:]]*=[[:space:]]*)?//; s/[[:space:]]+$//')"
+  if [ -n "$key" ]; then
+    printf '%s' "$key" | grep -Eq '^[A-Za-z0-9+/]{43}=$' || die "Isso não parece uma PrivateKey do WireGuard (44 caracteres terminando em =)."
+  fi
+  pass="$(openssl rand -hex 12)"
+  umask 077
+  cat > "$ENV_FILE" <<EOF
+WIREGUARD_PRIVATE_KEY=$key
+SS_PASSWORD=$pass
+SS_PORT=8388
+VPN_COUNTRY=United States
+VPN_MODE=$([ -n "$key" ] && echo rapido || echo tor)
+EOF
+  chmod 600 "$ENV_FILE"
+  if [ -n "$key" ]; then info "Pronto. Agora: ./vpn up eua"
+  else info "Pronto. Rode ./vpn setup-tor (se ainda não rodou) e depois: ./vpn up eua --tor"; fi
+}
+
+# Escolhe um .ovpn grátis do país (sorteado) e prepara a cópia que passa pelo Tor.
+prepare_ovpn() {
+  local cc files f
+  cc="$(code_of "$1")"
+  files="$(ls "$SECRETS"/ovpn/"$cc"-free-*.ovpn 2>/dev/null || true)"
+  [ -n "$files" ] || die "Sem arquivo .ovpn de $1. Baixe no painel do Proton (OpenVPN, GNU/Linux, TCP, servidor grátis) e rode ./vpn setup-tor."
+  f="$(printf '%s\n' "$files" | awk 'BEGIN { srand() } { a[NR] = $0 } END { print a[int(rand() * NR) + 1] }')"
+  # Diretivas que poderiam desviar a conexão do Tor: arquivo recusado.
+  if grep -qiE '^[[:space:]]*(<connection>|http-proxy|socks-proxy|local |lport |bind)' "$f"; then
+    die "O arquivo $(basename "$f") tem diretivas de conexão/proxy; recusado para não sair fora do Tor."
+  fi
+  umask 077
+  mkdir -p "$SECRETS/run"
+  grep -vE '^(script-security|up |down |remote-random)' "$f" > "$SECRETS/run/active.ovpn"
+  printf 'socks-proxy 172.31.251.2 9050\n' >> "$SECRETS/run/active.ovpn"
+  basename "$f" .ovpn
+}
+
+wait_ready() {
+  local i health
+  for i in $(seq 1 "$1"); do
+    health="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || true)"
+    [ "$health" = healthy ] && return 0
+    sleep 2
+  done
+  return 1
+}
+
+# Modo tor: conexões TCP que saem do gluetun pela rede do Docker só podem ir ao Tor (172.31.251.2:9050);
+# as que vêm de 172.31.251.1 são os celulares entrando. Qualquer outra = conexão direta = vazamento.
+tor_path_ok() {
+  local out
+  out="$(docker exec "$CONTAINER" netstat -tn 2>/dev/null)" || return 1
+  printf '%s\n' "$out" | awk '
+    $1 == "tcp" && $4 ~ /^172\.31\.251\.3:/ {
+      if ($5 == "172.31.251.2:9050") tor = 1
+      else if ($5 !~ /^172\.31\.251\.1:/) bad = 1
+    }
+    END { exit (tor && !bad) ? 0 : 1 }'
+}
+
+net_signature() {
+  local ip gw
+  ip="$(mac_ip 2>/dev/null)" || ip=""
+  gw="$(route -n get default 2>/dev/null | awk '/gateway:/ { print $2 }')"
+  printf '%s %s\n' "${ip:-sem-rede}" "${gw:-sem-gateway}"
+}
+
+notify() { osascript -e "display notification \"$1\" with title \"VPN País\"" >/dev/null 2>&1 || true; }
+
+stop_vigia() {
+  local pid
+  pid="$(cat "$SECRETS/run/vigia.pid" 2>/dev/null || true)"
+  [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+  rm -f "$SECRETS/run/vigia.pid"
+}
+
+# Desliga tudo se a rede do Mac mudar ou se, no modo tor, aparecer conexão fora do Tor.
+derrubar() {
+  printf '%s\n' "$1" > "$SECRETS/run/evento.txt"
+  compose tor down --remove-orphans >/dev/null 2>&1 || true
+  compose rapido down --remove-orphans >/dev/null 2>&1 || true
+  rm -f "$SECRETS/run/vigia.pid"
+  notify "$1"
+}
+
+vigia_loop() {
+  local inicial atual
+  inicial="$(cat "$SECRETS/run/rede" 2>/dev/null || true)"
+  while sleep 5; do
+    [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = true ] || { rm -f "$SECRETS/run/vigia.pid"; exit 0; }
+    atual="$(net_signature)"
+    if [ "$atual" != "$inicial" ]; then
+      derrubar "A rede do Mac mudou: VPN desligada. Rode ./vpn up para religar nesta rede."; exit 0
+    fi
+    if [ "$(mode)" = tor ] && [ "$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null)" = healthy ] && ! tor_path_ok; then
+      derrubar "Conexão fora do Tor detectada: VPN desligada por segurança."; exit 0
+    fi
+  done
+}
+
+start_vigia() {
+  stop_vigia
+  net_signature > "$SECRETS/run/rede"
+  nohup "$VPN_HOME/vpn" _vigia >/dev/null 2>&1 &
+  echo $! > "$SECRETS/run/vigia.pid"
+}
+
+exit_info() {
+  docker exec "$CONTAINER" wget -qO- -T 20 https://ipinfo.io/json 2>/dev/null \
+    | tr -d '\n' | sed -E 's/.*"ip": *"([^"]*)".*"city": *"([^"]*)".*"country": *"([^"]*)".*/\1 (\2, \3)/'
+}
+
+start() {
+  local m country server tries
+  m="$(mode)"; country="$(env_get VPN_COUNTRY)"
+  if [ "$m" = tor ]; then
+    [ -f "$SECRETS/openvpn-auth.txt" ] || die "Faltam as credenciais OpenVPN: ./vpn setup-tor"
+    server="$(prepare_ovpn "$country")"
+    info "Conectando em $country via Tor ($server)... pode levar até 2 min."
+    tries=90
+  else
+    [ -n "$(env_get WIREGUARD_PRIVATE_KEY)" ] || die "Sem chave WireGuard para o modo rápido: ./vpn setup --force, ou use --tor."
+    info "Conectando em $country..."
+    tries=45
+  fi
+  stop_vigia
+  rm -f "$SECRETS/run/evento.txt"
+  local alvo=()
+  if [ "$m" = tor ] && [ "$(docker inspect -f '{{.State.Running}}' vpn-pais-tor 2>/dev/null)" = true ]; then
+    # Só troca o servidor do Proton: o Tor continua de pé (mais rápido, mesmos nós de entrada).
+    alvo=(--no-deps gluetun)
+  else
+    # Desliga o outro modo (mesmos nomes de container e porta).
+    compose "$([ "$m" = tor ] && echo rapido || echo tor)" down --remove-orphans >/dev/null 2>&1 || true
+  fi
+  compose "$m" up -d --force-recreate ${alvo[@]+"${alvo[@]}"} >/dev/null 2>&1 || { compose "$m" up -d --force-recreate ${alvo[@]+"${alvo[@]}"}; die "Falhou ao subir os containers."; }
+  if ! wait_ready "$tries"; then
+    compose "$m" logs --tail 20 >&2
+    compose "$m" down >/dev/null 2>&1 || true
+    die "O túnel não conectou (veja o log acima). Tente de novo ou outro país."
+  fi
+  if [ "$m" = tor ] && ! tor_path_ok; then
+    compose "$m" down >/dev/null 2>&1 || true
+    die "A conexão com o Proton não passou pelo Tor; tudo foi desligado por segurança."
+  fi
+  start_vigia
+  info "Saindo por: $(exit_info)"
+}
+
+# Valida tudo antes de gravar no .env: um erro não deixa modo ou país pela metade.
+parse_up_args() {
+  local args=() a c="" m=""
+  for a in "$@"; do
+    case "$a" in
+      --tor) m=tor ;;
+      --rapido|--rápido) m=rapido ;;
+      *) args+=("$a") ;;
+    esac
+  done
+  if [ ${#args[@]} -gt 0 ]; then
+    c="$(country_of "${args[*]}")"
+    [ -n "$c" ] || die "País desconhecido: ${args[*]}. Veja ./vpn paises"
+  fi
+  case "${m:-$(mode)}" in
+    tor) [ -f "$SECRETS/openvpn-auth.txt" ] || die "Faltam as credenciais OpenVPN: ./vpn setup-tor" ;;
+    *) [ -n "$(env_get WIREGUARD_PRIVATE_KEY)" ] || die "Sem chave WireGuard para o modo rápido: ./vpn setup --force, ou use --tor." ;;
+  esac
+  [ -z "$m" ] || env_set VPN_MODE "$m"
+  [ -z "$c" ] || env_set VPN_COUNTRY "$c"
+}
+
+cmd_up() {
+  need_env; need_docker
+  parse_up_args "$@"
+  start
+  info
+  info "No celular, use o app Outline (chave: ./vpn celular)."
+}
+
+cmd_pais() {
+  [ -n "${1:-}" ] || die "Uso: ./vpn pais <país>. Veja ./vpn paises"
+  need_env; need_docker
+  parse_up_args "$@"
+  start
+  info "O celular continua conectado no Outline; se algo travar, desligue e ligue no app."
+}
+
+cmd_paises() {
+  local atual; atual="$(env_get VPN_COUNTRY)"
+  printf '%s\n' "$PAISES" | while IFS=: read -r k c cc; do
+    local tor=""
+    ls "$SECRETS"/ovpn/"$cc"-free-*.ovpn >/dev/null 2>&1 || tor=" (sem .ovpn: só modo rápido)"
+    if [ "$c" = "$atual" ]; then printf '  * %-10s %s%s (atual)\n' "$k" "$c" "$tor"
+    else printf '    %-10s %s%s\n' "$k" "$c" "$tor"; fi
+  done
+}
+
+cmd_status() {
+  need_env
+  if ! docker inspect "$CONTAINER" >/dev/null 2>&1 || [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" != true ]; then
+    info "Desligada."
+    [ -f "$SECRETS/run/evento.txt" ] && info "Motivo: $(cat "$SECRETS/run/evento.txt")"
+    return
+  fi
+  info "Ligada, modo $(mode) ($(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER")), país: $(env_get VPN_COUNTRY)"
+  info "Saindo por: $(exit_info)"
+  info "Mac na rede local: $(mac_ip):$(env_get SS_PORT)"
+  if [ "$(mode)" = tor ]; then
+    if tor_path_ok; then info "Caminho: Proton só pelo Tor (conferido agora)."
+    else info "Caminho: NÃO conferido (sem conexão ativa com o Tor)."; fi
+  fi
+  [ -f "$SECRETS/run/vigia.pid" ] && kill -0 "$(cat "$SECRETS/run/vigia.pid")" 2>/dev/null \
+    && info "Vigia de rede: ativo (desliga tudo se a rede mudar)." || info "Vigia de rede: INATIVO."
+}
+
+cmd_celular() {
+  need_env
+  local host port pass userinfo url
+  host="$(mac_ip)"; port="$(env_get SS_PORT)"; pass="$(env_get SS_PASSWORD)"
+  userinfo="$(printf 'chacha20-ietf-poly1305:%s' "$pass" | base64 | tr '+/' '-_' | tr -d '=\n')"
+  url="ss://${userinfo}@${host}:${port}#Mac-VPN"
+  cat <<EOF
+1. Instale o app Outline (Outline Client, grátis) no celular.
+2. No Outline, toque em + e cole a chave abaixo (ou leia o QR code abaixo com a câmera; evite mandar a chave por mensagem).
+3. Conecte. O país e o modo mudam pelo Mac (./vpn pais <país>), sem mexer no celular.
+
+$url
+
+EOF
+  if command -v qrencode >/dev/null; then qrencode -t ansiutf8 "$url"
+  else info "(Para ver o QR code aqui: brew install qrencode)"; fi
+  info "Só funciona na mesma rede do Mac e com ele acordado. Se o IP do Mac mudar, rode ./vpn celular de novo."
+}
+
+main() {
+  local cmd="${1:-help}"
+  [ $# -gt 0 ] && shift
+  case "$cmd" in
+    setup)  cmd_setup "$@" ;;
+    setup-tor) "$VPN_HOME/guardar-credenciais-tor.sh" ;;
+    up)     cmd_up "$@" ;;
+    pais|país) cmd_pais "$@" ;;
+    paises|países) cmd_paises ;;
+    status) cmd_status ;;
+    celular) cmd_celular ;;
+    down)   need_env; need_docker; stop_vigia; rm -f "$SECRETS/run/evento.txt"; compose tor down --remove-orphans >/dev/null 2>&1 || true
+            compose rapido down --remove-orphans >/dev/null 2>&1 || true; info "Desligada." ;;
+    logs)   need_env; need_docker; compose "$(mode)" logs --tail 50 -f ;;
+    _vigia) need_env; vigia_loop ;;
+    help|-h|--help) usage ;;
+    *) usage >&2; return 1 ;;
+  esac
+}
+
+set -euo pipefail
+migrar_dados
+main "$@"

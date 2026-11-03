@@ -1,0 +1,6 @@
+# Painel de controle do gluetun (127.0.0.1:8000): tudo bloqueado, exceto ler o IP público.
+# Sem isto, quem tem a chave do celular poderia desligar a VPN pelo proxy.
+[[roles]]
+name = "vpn-pais"
+routes = ["GET /v1/publicip/ip"]
+auth = "none"

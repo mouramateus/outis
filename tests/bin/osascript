@@ -1,0 +1,2 @@
+#!/bin/bash
+printf 'osascript %s\n' "$*" >> "$FAKE_LOG"

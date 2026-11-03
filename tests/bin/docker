@@ -1,0 +1,26 @@
+#!/bin/bash
+# docker falso, guiado por variáveis FAKE_*.
+printf 'docker %s\n' "$*" >> "$FAKE_LOG"
+case "$1" in
+  info)
+    [ "${FAKE_DOCKER_HANG:-0}" = 1 ] && exec sleep 30
+    [ "${FAKE_DOCKER_DOWN:-0}" = 1 ] && exit 1
+    exit 0 ;;
+  inspect)
+    [ -n "${FAKE_RUNNING:-}" ] || exit 1
+    case "$*" in
+      *Running*) echo "$FAKE_RUNNING" ;;
+      *Health*) echo "${FAKE_HEALTH:-starting}" ;;
+      *StartedAt*) echo "2026-11-03T12:00:00.000000000Z" ;;
+    esac ;;
+  exec)
+    case "$*" in
+      *publicip*) printf '%s\n' "${FAKE_PUBLICIP:-{\"public_ip\":\"\"\}}" ;;
+      *netstat*) printf '%s\n' "${FAKE_NETSTAT:-}" ;;
+    esac ;;
+  logs) printf '%s\n' "${FAKE_LOGS:-}" ;;
+  compose)
+    env | grep -E '^(OPENVPN_USER|OPENVPN_PASSWORD|SS_BIND|COMPOSE_PROFILES)=' >> "$FAKE_LOG"
+    case "$*" in *" up "*) [ "${FAKE_COMPOSE_HANG:-0}" = 1 ] && exec sleep 30 ;; esac
+    exit 0 ;;
+esac

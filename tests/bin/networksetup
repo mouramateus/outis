@@ -1,0 +1,2 @@
+#!/bin/bash
+printf 'Hardware Port: Wi-Fi\nDevice: en0\nEthernet Address: aa\n\n'

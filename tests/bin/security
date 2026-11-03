@@ -1,0 +1,20 @@
+#!/bin/bash
+# Keychain falso: um arquivo por serviço.conta. Registra o argv, para provar que a senha não passa por ele.
+printf 'security %s\n' "$*" >> "$FAKE_LOG"
+[ "${FAKE_KC_FAIL:-0}" = 1 ] && exit 1
+trata() {
+  local cmd="$1" s="" a="" w=""; shift
+  while [ $# -gt 0 ]; do
+    case "$1" in -s) s="$2"; shift 2 ;; -a) a="$2"; shift 2 ;; -w) w="${2:-}"; shift; [ $# -gt 0 ] && shift ;; *) shift ;; esac
+  done
+  case "$cmd" in
+    add-generic-password) printf '%s' "$w" > "$FAKE_KC/$s.$a" ;;
+    find-generic-password) [ -f "$FAKE_KC/$s.$a" ] || exit 44; cat "$FAKE_KC/$s.$a"; echo ;;
+    delete-generic-password) rm -f "$FAKE_KC/$s.$a" ;;
+  esac
+}
+if [ "$1" = -i ]; then
+  while IFS= read -r linha; do eval "trata $linha"; done
+else
+  trata "$@"
+fi

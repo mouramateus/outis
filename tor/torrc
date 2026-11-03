@@ -4,3 +4,5 @@ SocksPolicy accept 172.31.251.0/28
 SocksPolicy reject *
 DataDirectory /var/lib/tor
 Log notice stdout
+# País de saída opcional (caminho Só Tor), gerado pelo ./vpn.
+%include /run/vpn/extra.conf

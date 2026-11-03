@@ -137,11 +137,12 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
         inicioConexao = Date()
         log.append("$ vpn \(args.joined(separator: " "))")
         do {
-            try await cli.stream(args, timeout: 300) { [weak self] linha in
+            try await cli.stream(args, timeout: 480) { [weak self] linha in
                 Task { @MainActor in self?.receber(linha) }
             }
         } catch CLIError.timeout(let s) {
             mensagem = "O comando demorou demais (\(s) s)."
+            cancelado = true
         } catch CLIError.falhou(let m) {
             if !cancelado { mensagem = m }
         } catch {

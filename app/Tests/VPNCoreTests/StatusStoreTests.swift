@@ -148,6 +148,13 @@ private final class FakeCLI: CLIProtocol, @unchecked Sendable {
     #expect(s.mensagem == "O comando demorou demais (300 s).")
 }
 
+@MainActor @Test func timeoutDerrubaTudo() async {
+    let cli = FakeCLI(); cli.falha = .timeout(480)
+    let (s, _) = novoStore(cli)
+    await s.ligar()
+    #expect(cli.chamadas.contains { $0 == ["down"] })
+}
+
 @MainActor @Test func redeMudouQuandoIpDoMacMuda() async {
     let cli = FakeCLI()
     let d = UserDefaults(suiteName: "teste-\(UUID().uuidString)")!

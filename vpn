@@ -14,7 +14,7 @@ VPN_PROJECT="${VPN_PROJECT:-vpn-pais}"
 CONTAINER="$VPN_PROJECT"
 TOR_CONTAINER="$VPN_PROJECT-tor"
 GOST_CONTAINER="$VPN_PROJECT-gost"
-ESPERA="${VPN_ESPERA:-90}"
+ESPERA="${VPN_ESPERA:-60}"
 export VPN_DATA VPN_PROJECT
 
 usage() {
@@ -171,15 +171,23 @@ HAS_LOCK=0
 release_lock() { [ "$HAS_LOCK" = 1 ] && rm -rf "$LOCK"; HAS_LOCK=0; }
 on_term() {
   if [ -n "$CHILD" ]; then pkill -TERM -P "$CHILD" 2>/dev/null; kill "$CHILD" 2>/dev/null; fi
+  # Um `up` interrompido não pode deixar túnel de pé sem vigia.
+  if [ "$(cat "$LOCK/op" 2>/dev/null)" = up ]; then
+    PERFIS="" compose down --remove-orphans >/dev/null 2>&1 || true
+    rm -f "$RUN/modo"
+  fi
   exit 143
 }
+
+# Depois de um crash ou reinício o PID pode ser de outro programa: confere o comando.
+pid_e_do_cli() { ps -p "$1" -o command= 2>/dev/null | grep -qE '(^|[ /])vpn( |$)'; }
 
 take_lock() {
   local pid
   (umask 077; mkdir -p "$RUN")
   if ! mkdir "$LOCK" 2>/dev/null; then
     pid="$(cat "$LOCK/pid" 2>/dev/null || true)"
-    if [ -z "$pid" ] || kill -0 "$pid" 2>/dev/null; then die "Outra operação em andamento."; fi
+    if [ -z "$pid" ] || pid_e_do_cli "$pid"; then die "Outra operação em andamento."; fi
     rm -rf "$LOCK"
     mkdir "$LOCK" 2>/dev/null || die "Outra operação em andamento."
   fi
@@ -193,7 +201,7 @@ take_lock() {
 operacao() {
   local pid
   pid="$(cat "$LOCK/pid" 2>/dev/null || true)"
-  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && cat "$LOCK/op" 2>/dev/null
+  [ -n "$pid" ] && pid_e_do_cli "$pid" && cat "$LOCK/op" 2>/dev/null
   return 0
 }
 
@@ -409,7 +417,7 @@ start() {
   anterior="$(cat "$RUN/modo" 2>/dev/null || true)"
   stop_vigia
   rm -f "$RUN/erro.json" "$RUN/evento.txt" "$RUN/saida.json"
-  prepare_tor_extra "$saida"
+  if [ "$m" = sotor ]; then prepare_tor_extra "$saida"; else prepare_tor_extra auto; fi
   case "$m" in
     sotor) prepare_gost; info "Conectando pelo Tor... pode levar até 2 min." ;;
     tor) prepare_ovpn "$ovpn" tor; info "Conectando em $country via Tor ($(basename "$ovpn" .ovpn))... pode levar até 2 min." ;;
@@ -438,7 +446,7 @@ start() {
     if [ "$m" = tor ] && ! tor_path_ok; then
       falhar fora_do_tor "A conexão com o Proton não passou pelo Tor; tudo foi desligado por segurança."
     fi
-    esperar 6 ip_ok || info "Ainda sem o IP de saída; o vigia continua tentando."
+    esperar 3 ip_ok || info "Ainda sem o IP de saída; o vigia continua tentando."
   fi
   start_vigia
   info "Conectada."
@@ -460,7 +468,7 @@ cmd_up() {
   done
   need_env
   [ -n "$m" ] || { m="$(env_get VPN_MODE)"; case "$m" in sotor) ;; *) m=tor ;; esac; }
-  [ -n "$saida" ] || saida="$(env_get VPN_SAIDA)"
+  if [ "$m" = sotor ] && [ -z "$saida" ]; then saida="$(env_get VPN_SAIDA)"; fi
   case "${saida:-auto}" in auto|[a-z][a-z]) ;; *) die "País de saída inválido: $saida" ;; esac
   if [ "$m" = proton ] && [ "$confirmo" != 1 ]; then
     die "Só Proton quebra o anonimato da conta: o Proton vê o IP de casa. Para ligar, use --confirmo-quebrar-anonimato."
@@ -522,7 +530,7 @@ notify() {
 stop_vigia() {
   local pid
   pid="$(cat "$RUN/vigia.pid" 2>/dev/null || true)"
-  if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi
+  if [ -n "$pid" ] && pid_e_do_cli "$pid"; then kill "$pid" 2>/dev/null || true; fi
   rm -f "$RUN/vigia.pid"
 }
 
@@ -540,7 +548,7 @@ vigia_loop() {
   while :; do
     if [ -z "$(operacao)" ]; then
       m="$(mode)"; c="$(active_container "$m")"
-      if ! is_running "$c"; then
+      if ! is_running "$c" || { [ "$m" != proton ] && ! is_running "$TOR_CONTAINER"; }; then
         derrubar queda "A VPN caiu. Seu iPhone pode estar sem VPN."; return
       fi
       if [ "$(net_signature)" != "$inicial" ]; then
@@ -600,7 +608,7 @@ status_json() {
     if is_running "$c"; then
       desde="$(epoch_de "$(docker inspect -f '{{.State.StartedAt}}' "$c" 2>/dev/null)")"
       case "$m" in
-        sotor) if tor_ready; then estado=ligada; else estado=conectando; fi ;;
+        sotor) if is_running "$TOR_CONTAINER" && tor_ready; then estado=ligada; else estado=conectando; fi ;;
         *)
           j="$(public_ip_json)"
           ip="$(printf '%s' "$j" | json_get public_ip)"

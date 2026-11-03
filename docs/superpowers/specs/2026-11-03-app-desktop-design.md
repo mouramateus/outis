@@ -48,7 +48,7 @@ Assinatura Apple/notarização, App Store, atualização automática, abrir ao i
 - **Contrato JSON** em `./vpn status --json`, que nunca falha nem abre o OrbStack; `paises`, `celular`, `conexoes` com `--json`; `init`, `escolher`, `importar-ovpn <pastas>`, `credenciais-openvpn` (stdin), `migrar-keychain`, `caminho <tor|sotor|proton> [--pais xx] [--confirmo-quebrar-anonimato]`.
 - **Estado:** `erro` só vale com a VPN parada: túnel saudável vence. IP de saída vem do `PUBLICIP` do gluetun (uma vez por conexão) lido no painel local. Só Tor não tem IP fixo: mostra "saída pelo Tor (varia)".
 - **Só Tor:** container `gost` recebe o Shadowsocks e encaminha tudo ao SOCKS do Tor. Sem UDP: comportamento do Outline nesse caminho precisa de teste no iPhone.
-- **Ações:** uma por vez (trava com liberação por `trap`), exposta como `operacao` no status. Etapas impressas como `etapa: tor|proton|conferindo`. Cancelar encerra a ação e roda `down`. Timeout do app: 300 s.
+- **Ações:** uma por vez (trava com liberação por `trap`), exposta como `operacao` no status. Etapas impressas como `etapa: tor|proton|conferindo`. Cancelar encerra a ação e roda `down`. Timeout do app: 480 s, acima do pior caso do CLI.
 - **Atualização:** 5 s com a janela aberta ou conectando, 30 s fora disso; refresh ao acordar (`didWakeNotification`); conexões só com a aba Celular aberta.
 - **Testes de verificação nunca tocam o ambiente real:** `VPN_DATA`, `VPN_KC_SERVICE`, `VPN_PROJECT` e `SS_PORT` configuráveis.
 

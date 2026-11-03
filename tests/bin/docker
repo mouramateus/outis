@@ -9,6 +9,7 @@ case "$1" in
   inspect)
     [ -n "${FAKE_RUNNING:-}" ] || exit 1
     case "$*" in
+      *Running*-tor) echo "${FAKE_TOR_RUNNING:-$FAKE_RUNNING}" ;;
       *Running*) echo "$FAKE_RUNNING" ;;
       *Health*) echo "${FAKE_HEALTH:-starting}" ;;
       *StartedAt*) echo "2026-11-03T12:00:00.000000000Z" ;;

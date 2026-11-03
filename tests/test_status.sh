@@ -20,7 +20,8 @@ erro_nao_vence_tunel_saudavel() { ligar_fake; echo '{"codigo":"tor","mensagem":"
 pais_diferente_avisa() { ligar_fake; export FAKE_PUBLICIP='{"public_ip":"1.1.1.1","country":"Canada"}'; s="$(st)"; assert_eq "$(echo "$s" | jqr .estado)" ligada; assert_eq "$(echo "$s" | jqr .aviso)" pais_diferente; }
 credenciais_no_status() { assert_eq "$(st | jqr .credenciais)" false; creds; assert_eq "$(st | jqr .credenciais)" true; }
 
-lock_vivo() { sleep 30 & L=$!; mkdir "$VPN_DATA/secrets/run/lock"; echo "$L" > "$VPN_DATA/secrets/run/lock/pid"; echo up > "$VPN_DATA/secrets/run/lock/op"; }
+# Processo com cara de CLI: o dono da trava é conferido pelo comando, não só pelo PID.
+lock_vivo() { /bin/bash -c 'sleep 30; true' /x/vpn & L=$!; sleep 0.2; mkdir "$VPN_DATA/secrets/run/lock"; echo "$L" > "$VPN_DATA/secrets/run/lock/pid"; echo up > "$VPN_DATA/secrets/run/lock/op"; }
 operacao_exposta() { lock_vivo; assert_eq "$(st | jqr .operacao)" up; kill "$L"; }
 trava_recusa_segunda() { lock_vivo; out="$($VPN down 2>&1)"; assert_contains "$out" "Outra operação em andamento"; kill "$L"; }
 trava_orfa_e_removida() { mkdir "$VPN_DATA/secrets/run/lock"; echo 999999 > "$VPN_DATA/secrets/run/lock/pid"; assert_contains "$($VPN down 2>&1)" Desligada; }
@@ -88,6 +89,38 @@ vigia_completa_ip_faltando() {
 }
 pais_em_codigo_nao_avisa() { ligar_fake; export FAKE_PUBLICIP='{"public_ip":"1.1.1.1","country":"US"}'; assert_eq "$(st | jqr .aviso)" null; }
 
+saida_de_so_tor_nao_vaza_para_tor_proton() {
+  creds; ovpn us-free-1.protonvpn.tcp.ovpn; ligar_fake; echo VPN_SAIDA=jp >> "$VPN_DATA/.env"
+  VPN_ESPERA=1 $VPN up --tor >/dev/null 2>&1
+  assert_not_contains "$(cat "$VPN_DATA/secrets/run/tor/extra.conf")" ExitNodes
+}
+term_no_meio_do_up_nao_deixa_tunel_sem_vigia() {
+  creds; ovpn us-free-1.protonvpn.tcp.ovpn; ligar_fake; export FAKE_HEALTH=starting
+  VPN_ESPERA=20 /bin/bash "$ROOT/vpn" up >/dev/null 2>&1 & P=$!
+  sleep 3; kill -TERM "$P"; sleep 3; wait "$P" 2>/dev/null
+  assert_contains "$(cat "$FAKE_LOG")" "down --remove-orphans"
+  assert_no_file "$VPN_DATA/secrets/run/modo"; assert_no_file "$VPN_DATA/secrets/run/lock"
+}
+pid_alheio_no_vigia_nao_e_morto() {
+  sleep 30 & A=$!; echo "$A" > "$VPN_DATA/secrets/run/vigia.pid"
+  $VPN down >/dev/null 2>&1
+  kill -0 "$A" 2>/dev/null && ok || no "matou processo alheio"; kill "$A" 2>/dev/null
+}
+pid_alheio_na_trava_e_orfao() {
+  sleep 30 & A=$!; mkdir "$VPN_DATA/secrets/run/lock"; echo "$A" > "$VPN_DATA/secrets/run/lock/pid"; echo up > "$VPN_DATA/secrets/run/lock/op"
+  assert_eq "$(st | jqr .operacao)" null
+  assert_contains "$($VPN down 2>&1)" Desligada; kill "$A" 2>/dev/null
+}
+so_tor_com_tor_morto_nao_e_ligada() {
+  printf 'sotor\n' > "$VPN_DATA/secrets/run/modo"
+  export FAKE_RUNNING=true FAKE_TOR_RUNNING=false FAKE_LOGS='Bootstrapped 100%'
+  assert_eq "$(est)" conectando
+}
+vigia_tor_morto_derruba() {
+  vigia_prepara; export FAKE_TOR_RUNNING=false; $VPN _vigia
+  assert_eq "$(FAKE_RUNNING= st | jqr .motivo_codigo)" queda
+}
+
 vigia_prepara() { ligar_fake; printf 'tor\n' > "$VPN_DATA/secrets/run/modo"; printf '192.168.1.52 192.168.1.254\n' > "$VPN_DATA/secrets/run/rede"; export VPN_VIGIA_UMA=1; }
 vigia_rede_mudou() { vigia_prepara; printf '10.0.0.2 10.0.0.1\n' > "$VPN_DATA/secrets/run/rede"; $VPN _vigia; s="$(FAKE_RUNNING= st)"; assert_eq "$(echo "$s" | jqr .motivo_codigo)" rede; assert_contains "$(cat "$FAKE_LOG")" "compose"; assert_contains "$(cat "$FAKE_LOG")" osascript; }
 vigia_sem_mudanca_nao_derruba() { vigia_prepara; $VPN _vigia; assert_not_contains "$(cat "$FAKE_LOG")" " down"; }
@@ -97,4 +130,4 @@ vigia_nao_saudavel_passa_do_limite() { vigia_prepara; export FAKE_HEALTH=unhealt
 vigia_app_aberto_nao_duplica_aviso() { vigia_prepara; export FAKE_RUNNING=false VPN_NOTIFY=app FAKE_APP_ABERTO=1; $VPN _vigia; assert_not_contains "$(cat "$FAKE_LOG")" osascript; unset VPN_NOTIFY FAKE_APP_ABERTO; }
 vigia_app_fechado_avisa_sozinho() { vigia_prepara; export FAKE_RUNNING=false VPN_NOTIFY=app FAKE_APP_ABERTO=0; $VPN _vigia; assert_contains "$(cat "$FAKE_LOG")" osascript; unset VPN_NOTIFY FAKE_APP_ABERTO; }
 
-for f in ip_de_reserva_quando_gluetun_falha ip_de_reserva_segunda_opcao cache_de_outra_conexao_nao_vale vigia_completa_ip_faltando pais_em_codigo_nao_avisa orbstack_fechado orbstack_travado_responde_rapido sem_env_nao_morre sem_rede_nao_morre parada conectando_sem_health ligada_com_ip_e_caminho sem_ip_nao_e_ligada fora_do_tor_nao_e_ligada erro_vale_com_vpn_parada erro_nao_vence_tunel_saudavel pais_diferente_avisa credenciais_no_status operacao_exposta trava_recusa_segunda trava_orfa_e_removida trava_liberada_em_falha trava_liberada_em_sigterm erro_credenciais_tem_codigo etapas_impressas tor_usa_socks so_proton_exige_confirmacao so_proton_nao_fica_salvo so_tor_saida_fixa so_tor_auto_sem_exitnodes ovpn_com_proxy_recusado pais_sem_ovpn_nao_derruba vigia_rede_mudou vigia_sem_mudanca_nao_derruba vigia_queda vigia_fora_do_tor vigia_nao_saudavel_passa_do_limite vigia_app_aberto_nao_duplica_aviso vigia_app_fechado_avisa_sozinho; do t $f; done
+for f in saida_de_so_tor_nao_vaza_para_tor_proton term_no_meio_do_up_nao_deixa_tunel_sem_vigia pid_alheio_no_vigia_nao_e_morto pid_alheio_na_trava_e_orfao so_tor_com_tor_morto_nao_e_ligada vigia_tor_morto_derruba ip_de_reserva_quando_gluetun_falha ip_de_reserva_segunda_opcao cache_de_outra_conexao_nao_vale vigia_completa_ip_faltando pais_em_codigo_nao_avisa orbstack_fechado orbstack_travado_responde_rapido sem_env_nao_morre sem_rede_nao_morre parada conectando_sem_health ligada_com_ip_e_caminho sem_ip_nao_e_ligada fora_do_tor_nao_e_ligada erro_vale_com_vpn_parada erro_nao_vence_tunel_saudavel pais_diferente_avisa credenciais_no_status operacao_exposta trava_recusa_segunda trava_orfa_e_removida trava_liberada_em_falha trava_liberada_em_sigterm erro_credenciais_tem_codigo etapas_impressas tor_usa_socks so_proton_exige_confirmacao so_proton_nao_fica_salvo so_tor_saida_fixa so_tor_auto_sem_exitnodes ovpn_com_proxy_recusado pais_sem_ovpn_nao_derruba vigia_rede_mudou vigia_sem_mudanca_nao_derruba vigia_queda vigia_fora_do_tor vigia_nao_saudavel_passa_do_limite vigia_app_aberto_nao_duplica_aviso vigia_app_fechado_avisa_sozinho; do t $f; done

@@ -14,6 +14,9 @@ struct MenuRapidoView: View {
                 TituloEstado(texto: tituloEstado, estado: visual)
                 Text(soTor ? "Só Tor" : store.paisAtual?.nomePT ?? "—").font(.system(size: 17, weight: .semibold)).padding(.top, 4)
                 Text(linha).font(.system(size: 12.5).monospacedDigit()).foregroundStyle(Cor.apagado)
+                if store.macEstado == "ligada" {
+                    Text("Este Mac: pelo Tor").font(.system(size: 12)).foregroundStyle(Cor.apagado)
+                }
                 if store.status?.modo == .proton && store.estado == .ligada {
                     Text("Só Proton: o Proton vê seu IP").font(.system(size: 12, weight: .semibold))
                 }
@@ -41,6 +44,7 @@ struct MenuRapidoView: View {
                 }
             }
             .disabled(store.ocupado)
+            AvisoConflito(store: store)
             if let p = store.paisSelecionado {
                 Button("Conectar em \(p.nomeCurto) · ~2 min") { Task { await store.conectarSelecionado() } }
                     .buttonStyle(BotaoPrincipal())

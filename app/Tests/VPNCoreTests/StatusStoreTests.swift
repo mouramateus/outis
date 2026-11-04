@@ -13,8 +13,8 @@ private final class FakeCLI: CLIProtocol, @unchecked Sendable {
 
     init(status: String = FakeCLI.json()) { _status = status }
 
-    static func json(estado: String = "desligada", modo: String = "tor", ipMac: String = "192.168.1.52", operacao: String = "null", motivo: String = "null", aviso: String = "null") -> String {
-        #"{"estado":"\#(estado)","modo":"\#(modo)","pais":"United States","codigo":"us","ip_saida":null,"cidade":null,"pais_ip":null,"desde":null,"ip_mac":"\#(ipMac)","rede":"wifi","porta":8388,"aviso":\#(aviso),"codigo_erro":null,"mensagem_erro":null,"operacao":\#(operacao),"motivo_codigo":\#(motivo),"motivo":"m","credenciais":true,"saida_tor":null,"tor_conferido":false}"#
+    static func json(estado: String = "desligada", modo: String = "tor", ipMac: String = "192.168.1.52", operacao: String = "null", motivo: String = "null", aviso: String = "null", mac: String = "desligada", conflito: Bool = false) -> String {
+        #"{"mac_estado":"\#(mac)","mac_ip":null,"mac_saida":null,"conflito_orbstack":\#(conflito),"estado":"\#(estado)","modo":"\#(modo)","pais":"United States","codigo":"us","ip_saida":null,"cidade":null,"pais_ip":null,"desde":null,"ip_mac":"\#(ipMac)","rede":"wifi","porta":8388,"aviso":\#(aviso),"codigo_erro":null,"mensagem_erro":null,"operacao":\#(operacao),"motivo_codigo":\#(motivo),"motivo":"m","credenciais":true,"saida_tor":null,"tor_conferido":false}"#
     }
     func defineStatus(_ s: String) { trava.withLock { _status = s } }
     var chamadas: [[String]] { trava.withLock { _chamadas } }
@@ -153,6 +153,76 @@ private final class FakeCLI: CLIProtocol, @unchecked Sendable {
     let (s, _) = novoStore(cli)
     await s.ligar()
     #expect(cli.chamadas.contains { $0 == ["down"] })
+}
+
+@MainActor @Test func ligarMacUsaOCLI() async {
+    let cli = FakeCLI()
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    await s.ligarMac(saida: "de")
+    #expect(cli.chamadas.contains { $0 == ["mac", "on", "--saida", "de"] })
+    await s.desligarMac()
+    #expect(cli.chamadas.contains { $0 == ["mac", "off"] })
+}
+
+@MainActor @Test func ligarMacComCelularPedeConfirmacao() async {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "ligada", conflito: true))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    await s.ligarMac(saida: nil)
+    #expect(!cli.chamadas.contains { $0.first == "mac" })
+    #expect(s.confirmacao?.contains("celular vai perder a VPN") == true)
+    await s.confirmar()
+    #expect(cli.chamadas.contains { $0 == ["mac", "on", "--saida", "auto", "--derrubar-celular"] })
+    #expect(s.confirmacao == nil)
+}
+
+@MainActor @Test func ligarCelularComMacPedeConfirmacao() async {
+    let cli = FakeCLI(status: FakeCLI.json(mac: "ligada", conflito: true))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    await s.ligar()
+    #expect(!cli.chamadas.contains { $0.first == "up" })
+    #expect(s.confirmacao?.contains("Mac vai perder a VPN") == true)
+    await s.confirmar()
+    #expect(cli.chamadas.contains { $0 == ["up", "--derrubar-mac"] })
+}
+
+@MainActor @Test func conectarPaisComMacPedeConfirmacao() async {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "desligada", mac: "ligada", conflito: true))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    s.selecionar("jp")
+    await s.conectarSelecionado()
+    #expect(s.confirmacao != nil)
+    await s.confirmar()
+    #expect(cli.chamadas.contains { $0 == ["up", "japao", "--derrubar-mac"] })
+}
+
+@MainActor @Test func cancelarConfirmacaoNaoFazNada() async {
+    let cli = FakeCLI(status: FakeCLI.json(mac: "ligada", conflito: true))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    await s.ligar()
+    s.cancelarConfirmacao()
+    #expect(s.confirmacao == nil)
+    #expect(!cli.chamadas.contains { $0.first == "up" })
+}
+
+@MainActor @Test func semConflitoNaoPedeConfirmacao() async {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "ligada", conflito: false))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    await s.ligarMac(saida: nil)
+    #expect(s.confirmacao == nil)
+    #expect(cli.chamadas.contains { $0 == ["mac", "on", "--saida", "auto"] })
+}
+
+@Test func appsIncluidosSoListaOsInstalados() {
+    let g = AppsDoMac.grupos { nome in ["Safari", "Google Chrome", "Slack"].contains(nome) }
+    #expect(g.incluidos == ["Safari", "Google Chrome"])
+    #expect(g.depende == ["Slack"])
+    #expect(g.fora.contains { $0.hasPrefix("Terminal") })
 }
 
 @MainActor @Test func redeMudouQuandoIpDoMacMuda() async {

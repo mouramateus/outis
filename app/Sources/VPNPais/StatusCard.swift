@@ -12,6 +12,7 @@ struct StatusCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             conteudo
+            AvisoConflito(store: store).padding(.top, store.confirmacao == nil ? 0 : 10)
             if let m = store.mensagem {
                 Text(m).font(.system(size: 12)).foregroundStyle(Cor.texto)
                     .padding(.top, 10).fixedSize(horizontal: false, vertical: true)

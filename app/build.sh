@@ -11,6 +11,12 @@ rm -rf "$DIST"
 mkdir -p "$DIST/Contents/MacOS" "$DIST/Contents/Resources/cli"
 cp .build/apple/Products/Release/VPNPais "$DIST/Contents/MacOS/VPNPais"
 cp -R ../vpn ../compose.yaml ../guardar-credenciais-tor.sh ../tor ../config "$DIST/Contents/Resources/cli/"
+# Rota 1: Tor nativo, copiado do Tor Browser instalado (universal).
+TB="/Applications/Tor Browser.app/Contents"
+[ -x "$TB/MacOS/Tor/tor" ] || { echo "Instale o Tor Browser para compilar: o app embute o Tor dele."; exit 1; }
+mkdir -p "$DIST/Contents/Resources/cli/tor-nativo"
+cp "$TB/MacOS/Tor/tor" "$TB/MacOS/Tor/libevent-2.1.7.dylib" "$TB/Resources/TorBrowser/Tor/geoip" "$TB/Resources/TorBrowser/Tor/geoip6" "$DIST/Contents/Resources/cli/tor-nativo/"
+codesign --force --sign - "$DIST/Contents/Resources/cli/tor-nativo/libevent-2.1.7.dylib" "$DIST/Contents/Resources/cli/tor-nativo/tor"
 [ -f dist/AppIcon.icns ] || swift make-icon.swift dist
 cp dist/AppIcon.icns "$DIST/Contents/Resources/AppIcon.icns"
 cat > "$DIST/Contents/Info.plist" <<PLIST

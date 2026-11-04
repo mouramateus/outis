@@ -608,7 +608,7 @@ cmd_mac_on() {
   {
     printf 'SocksPort 127.0.0.1:%s\n' "$MAC_PORTA"
     printf 'DataDirectory "%s"\n' "$dados"
-    printf 'Log notice file "%s"\n' "$MAC_DIR/tor.log"
+    printf 'Log notice file %s\n' "$MAC_DIR/tor.log"
     printf 'ClientOnly 1\n'
     [ -f "$(dirname "$tor")/geoip" ] && printf 'GeoIPFile "%s"\nGeoIPv6File "%s"\n' "$(dirname "$tor")/geoip" "$(dirname "$tor")/geoip6"
     if [ -n "$saida" ] && [ "$saida" != auto ]; then printf 'ExitNodes {%s}\nStrictNodes 1\n' "$saida"; fi

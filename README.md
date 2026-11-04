@@ -24,6 +24,13 @@ O app **Outis** (macOS 14 ou mais novo) tem janela e ícone na barra de menus, e
 
 Fechar a janela ou sair (⌘Q) **não** desliga a VPN.
 
+## Duas rotas
+
+- **Rota 2, celular:** a cadeia acima, no OrbStack.
+- **Rota 1, este Mac (aba "Este Mac"):** Tor nativo embutido no app e proxy do sistema, sem OrbStack nem conta do Proton. Vale só para apps que respeitam o proxy: navegadores entram; Terminal, Docker, Mail, chamadas e jogos não. O proxy só liga depois de o Tor provar que funciona. Se o Tor morrer, ele fica ligado de propósito: os navegadores ficam sem internet em vez de sair pelo IP de casa, e o app oferece religar ou desligar.
+
+Com o OrbStack em `network_proxy: auto`, o proxy do sistema tira a internet dos containers, então as duas rotas não funcionam juntas: o Outis avisa qual vai cair e pede confirmação. Com `orb config set network_proxy none` elas convivem e o aviso some. Essa mudança vale para todo o OrbStack.
+
 ## Terminal
 
 Dados e segredos ficam em `~/Library/Application Support/vpn-pais`; as credenciais OpenVPN, no Keychain.
@@ -32,6 +39,8 @@ Dados e segredos ficam em `~/Library/Application Support/vpn-pais`; as credencia
     ./vpn up eua                        # liga (lembra país e caminho)
     ./vpn pais japao                    # troca de país, sem reiniciar o Tor
     ./vpn up --so-tor [--saida de]      # Só Tor; --saida fixa o país de saída
+    ./vpn mac on [--saida de]           # Rota 1: este Mac pelo Tor
+    ./vpn mac off                       # desliga a Rota 1 e restaura o proxy
     ./vpn status                        # estado, IP e caminho conferido
     ./vpn celular                       # chave e QR code para o Outline
     ./vpn down                          # desliga

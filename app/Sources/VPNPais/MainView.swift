@@ -2,12 +2,13 @@ import SwiftUI
 import VPNCore
 
 enum Aba: String, CaseIterable, Identifiable {
-    case inicio = "Início", celular = "Celular", conta = "Conta", avancado = "Avançado", logs = "Logs"
+    case inicio = "Início", celular = "Celular", mac = "Este Mac", conta = "Conta", avancado = "Avançado", logs = "Logs"
     var id: String { rawValue }
     var simbolo: String {
         switch self {
         case .inicio: "globe"
         case .celular: "iphone"
+        case .mac: "laptopcomputer"
         case .conta: "person"
         case .avancado: "slider.horizontal.3"
         case .logs: "list.bullet"
@@ -27,6 +28,7 @@ struct MainView: View {
                 switch aba {
                 case .inicio: InicioView(store: store, aba: $aba)
                 case .celular: CelularView(store: store)
+                case .mac: EsteMacView(store: store)
                 case .conta: ContaView(store: store)
                 case .avancado: AvancadoView(store: store)
                 case .logs: LogsView(store: store)

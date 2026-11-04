@@ -23,12 +23,17 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
     public private(set) var acaoEmAndamento = false
     public private(set) var redeMudou = false
     public private(set) var ipMacAnterior: String?
+    public private(set) var confirmacao: String?
     public var mensagem: String?
     public var janelaAberta = false
     public var abaCelularAberta = false
 
     public var ocupado: Bool { acaoEmAndamento || status?.operacao != nil }
     public var estado: Estado { status?.estado ?? .desligada }
+    public var macEstado: String { status?.macEstado ?? "desligada" }
+    private var conflito: Bool { status?.conflitoOrbstack == true }
+    private var celularAtivo: Bool { estado == .ligada || estado == .conectando }
+    private var macAtivo: Bool { macEstado != "desligada" }
     public var paisAtual: Pais? { paises.first { $0.codigo == status?.codigo } }
     public var paisSelecionado: Pais? { paises.first { $0.codigo == selecionado } }
 
@@ -36,6 +41,7 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
     private let defaults: UserDefaults
     private let notificar: @Sendable (String, String) -> Void
     private var cancelado = false
+    private var pendente: [String]?
     private var laco: Task<Void, Never>?
 
     public init(cli: CLIProtocol, defaults: UserDefaults = .standard,
@@ -161,13 +167,48 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
         if linha.hasPrefix("etapa: ") { etapa = Etapa(rawValue: String(linha.dropFirst(7))) }
     }
 
-    public func ligar() async { await acao(["up"]) }
+    public func ligar() async { await ligarCelular(["up"]) }
+
+    /// Com o OrbStack em `auto`, as duas rotas não convivem: a segunda derruba a primeira, e isso se confirma antes.
+    private func ligarCelular(_ args: [String]) async {
+        if conflito && macAtivo {
+            pendente = args + ["--derrubar-mac"]
+            confirmacao = "Se ligar o celular, o Mac vai perder a VPN."
+        } else {
+            await acao(args)
+        }
+    }
+
+    public func ligarMac(saida: String?) async {
+        let args = ["mac", "on", "--saida", saida ?? "auto"]
+        if conflito && celularAtivo {
+            pendente = args + ["--derrubar-celular"]
+            confirmacao = "Se ligar o Mac, o celular vai perder a VPN."
+        } else {
+            await acao(args)
+        }
+    }
+
+    public func desligarMac() async { await acao(["mac", "off"]) }
+
+    public func confirmar() async {
+        guard let args = pendente else { return }
+        pendente = nil
+        confirmacao = nil
+        await acao(args)
+    }
+
+    public func cancelarConfirmacao() {
+        pendente = nil
+        confirmacao = nil
+    }
+
     public func desligar() async { await acao(["down"]) }
 
     public func conectarSelecionado() async {
         guard let p = paisSelecionado else { return }
         selecionado = nil
-        await acao(["up", p.apelido])
+        await ligarCelular(["up", p.apelido])
     }
 
     public func cancelar() {
@@ -183,14 +224,14 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
             _ = try? await cli.run(["caminho", c.rawValue, "--saida", s], stdin: nil, timeout: 20)
             await atualizar()
         } else {
-            await acao(c == .sotor ? ["up", "--so-tor", "--saida", s] : ["up", "--tor"])
+            await ligarCelular(c == .sotor ? ["up", "--so-tor", "--saida", s] : ["up", "--tor"])
         }
     }
 
     /// Vale para uma conexão: o CLI não guarda Só Proton.
     public func ativarSoProton(confirmacao: String) async {
         guard confirmacao == "ENTENDO" else { return }
-        await acao(["up", "--so-proton", "--confirmo-quebrar-anonimato"])
+        await ligarCelular(["up", "--so-proton", "--confirmo-quebrar-anonimato"])
     }
 
     public func salvarCredenciais(usuario: String, senha: String) async throws {

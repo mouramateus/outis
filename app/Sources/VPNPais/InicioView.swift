@@ -84,6 +84,7 @@ struct InicioView: View {
             Text(store.status?.rede == "cabo" ? "Cabo" : store.status?.rede == "wifi" ? "Wi-Fi" : "Sem rede")
             separador
             Text(store.conexoes.count == 1 ? "1 conexão" : "\(store.conexoes.count) conexões")
+            if store.macEstado == "ligada" { separador; Text("Mac pelo Tor") }
         }
         .font(.system(size: 12))
         .padding(.horizontal, 12).padding(.vertical, 7)

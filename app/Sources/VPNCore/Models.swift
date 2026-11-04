@@ -25,6 +25,21 @@ public struct Status: Decodable, Equatable, Sendable {
     public var credenciais: Bool
     public var saidaTor: String?
     public var torConferido: Bool
+    public var macEstado: String?
+    public var macIp: String?
+    public var macSaida: String?
+    public var conflitoOrbstack: Bool?
+}
+
+/// Apps da Rota 1: só entram os que seguem o proxy do sistema.
+public enum AppsDoMac {
+    static let navegadores = ["Safari", "Google Chrome", "Microsoft Edge", "Brave Browser", "Firefox", "Arc", "Opera", "Vivaldi"]
+    static let dependem = ["Slack", "Discord", "Notion", "Spotify", "Visual Studio Code", "Cursor"]
+    public static let fora = ["Terminal e linha de comando", "OrbStack e Docker", "Tor Browser (usa o próprio Tor)", "Mail, Mensagens e iCloud", "FaceTime, Zoom e chamadas", "Jogos"]
+
+    public static func grupos(instalado: (String) -> Bool) -> (incluidos: [String], depende: [String], fora: [String]) {
+        (navegadores.filter(instalado), dependem.filter(instalado), fora)
+    }
 }
 
 public struct Pais: Decodable, Identifiable, Equatable, Sendable {

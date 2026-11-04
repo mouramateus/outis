@@ -59,3 +59,7 @@ Assinatura Apple/notarização, App Store, atualização automática, abrir ao i
 - **O ENTENDO vale para uma conexão só.** Só Proton não fica salvo: depois de desligar, cair ou trocar de rede, o próximo `up` volta a Tor + Proton. "Religar nesta rede" nunca usa Só Proton. Enquanto ligado em Só Proton, o cartão e o menu mostram "Só Proton: o Proton vê seu IP".
 - **Só Tor:** o mapa não seleciona país (o país de saída é só no Avançado, com o aviso). A linha simulada termina em "saída do Tor". "Ligada" = Tor em 100% e a porta do celular escutando. Em vez de "Kill switch ativo", o cartão diz "Sem saída direta: tudo passa pelo Tor". Marcado como **experimental** até o dono testar o Outline no iPhone, porque o caminho não tem UDP.
 - **Queda sem troca de rede:** com o container de pé e não saudável, o estado é "conectando" (o gluetun tenta sozinho). Depois de 60 s assim, ou se o container parar sem `down`, o vigia derruba tudo, grava o motivo e notifica "A VPN caiu. Seu iPhone pode estar sem VPN." O app mostra a notificação com botão; com o app fechado, vale a notificação simples do vigia.
+
+## Nome e símbolo (decisão do dono)
+
+O app se chama **Outis**. O símbolo é o capuz em pontos que se desfaz para a direita, com estrelas e bruma no rosto: `app/icone-1024.png`, gerado por `docs/superpowers/mockups/simbolo.html`. A barra de menus usa o capuz em pixel art de 16×16. Por dentro, a pasta, o comando `./vpn`, o executável e o identificador continuam com os nomes técnicos.

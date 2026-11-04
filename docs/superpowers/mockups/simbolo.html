@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>vpn-pais · símbolos v4</title>
+<style>
+  :root { --line: rgba(255,255,255,0.12); --strong: rgba(255,255,255,0.24); --muted: #a3a3a9; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: radial-gradient(1200px 700px at 20% -10%, #1d1d21 0%, transparent 60%), #050506; color: #f2f2f3;
+    font: 14px/1.45 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; padding: 48px 56px 96px; }
+  h1 { font: 600 28px/1.2 -apple-system, "SF Pro Display", sans-serif; letter-spacing: -0.02em; }
+  h2 { font: 600 19px/1.3 -apple-system, "SF Pro Display", sans-serif; margin: 44px 0 6px; }
+  .sub { color: var(--muted); margin-top: 6px; max-width: 820px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 372px); gap: 18px; margin-top: 22px; }
+  .card { border-radius: 20px; padding: 18px; background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); border: 1px solid var(--line); }
+  .tile { width: 336px; height: 336px; border-radius: 74px; overflow: hidden; border: 1px solid var(--strong); box-shadow: 0 16px 40px rgba(0,0,0,.65); background: #050506; }
+  .tile.p { width: 64px; height: 64px; border-radius: 14px; box-shadow: none; }
+  .tile.pp { width: 34px; height: 34px; border-radius: 8px; box-shadow: none; }
+  canvas { width: 100%; height: 100%; display: block; }
+  h3 { font-size: 16px; margin-top: 16px; }
+  .card p { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .tam { display: flex; gap: 12px; align-items: center; margin-top: 14px; color: var(--muted); font-size: 11.5px; }
+  .q { margin-top: 24px; padding: 12px 16px; border: 1px dashed var(--strong); border-radius: 12px; color: #d6d6db; max-width: 820px; font-size: 13px; }
+  body.so { padding: 0; background: #000; }
+  body.so > :not(canvas) { display: none; }
+  body.so canvas { width: 1024px; height: 1024px; }
+</style>
+</head>
+<body>
+<h1>Símbolos v4: capuz em alta qualidade</h1>
+<p class="sub">O capuz agora é um relevo 3D com tecido, dobras e luz, transformado em milhares de pontos. Os pontos que saem pela lateral seguem um fluxo curvo, como fumaça. Só muda o que há dentro do capuz.</p>
+<h2>As opções</h2>
+<div class="grid" id="grade"></div>
+<h2>A versão C em tamanho grande</h2>
+<p class="sub">O mesmo desenho com a grade completa de pontos, como ficaria na resolução máxima do ícone.</p>
+<div class="tile" id="grande" style="width:760px;height:760px;border-radius:168px;margin-top:18px"></div>
+<div class="q">Se nenhuma superar a opção 1 da rodada anterior, ficamos com ela, como você disse.</div>
+
+<script>
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const liso = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t); };
+const mix = (a, b, t) => a + (b - a) * t;
+
+function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123; return s - Math.floor(s); }
+function ruido(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  return mix(mix(hash(xi, yi), hash(xi + 1, yi), u), mix(hash(xi, yi + 1), hash(xi + 1, yi + 1), u), v);
+}
+function fbm(x, y, n = 5) { let s = 0, a = 0.5, t = 0; for (let i = 0; i < n; i++) { s += a * ruido(x, y); t += a; x = x * 2.03 + 17; y = y * 2.03 + 9; a *= 0.5; } return s / t; }
+
+// Silhueta: ponta do capuz, pescoço e ombros largos.
+function meiaLargura(y) {
+  if (y < -0.93 || y > 0.94) return 0;
+  const cy = -0.15, ry = 0.78, rx = 0.56;
+  if (y < 0.2) { const t = (y - cy) / ry; return Math.abs(t) >= 1 ? 0 : rx * Math.pow(1 - t * t, 0.58); }
+  const w0 = rx * Math.pow(1 - ((0.2 - cy) / ry) ** 2, 0.58);
+  if (y < 0.34) return w0 - 0.1 * (y - 0.2);
+  return Math.min(0.97, w0 - 0.014 + 1.3 * Math.pow(y - 0.34, 0.78));
+}
+// Abertura do rosto em forma de gota, pendendo para baixo.
+function aberturaD(x, y) {
+  const fy = (y + 0.13) / 0.5;
+  let fx = x / 0.325;
+  if (fy < 0) fx *= 1 + -fy * 0.72; else fx *= 1 + fy * 0.1;
+  return Math.hypot(fx, fy);
+}
+// Relevo do tecido.
+function altura(x, y) {
+  const w = meiaLargura(y);
+  if (w === 0 || Math.abs(x) >= w) return 0;
+  const u = x / w, fd = aberturaD(x, y);
+  const a = Math.atan2((y + 0.13) / 0.5, x / 0.325);
+  let h = 0.5 * Math.pow(1 - u * u, 0.42);
+  // Dobra grossa em volta do rosto e o tecido que afunda para dentro.
+  h += 0.2 * Math.exp(-(((fd - 1.13) / 0.13) ** 2));
+  h += 0.055 * Math.exp(-(((fd - 1.5) / 0.12) ** 2));
+  // Pregas que descem do topo do capuz e contornam o rosto.
+  const flu = fd * 5.2 + 1.3 * Math.sin(a * 2 + 0.6) + 2.2 * fbm(x * 1.8 + 3, y * 1.8, 3);
+  h += 0.042 * Math.sin(flu * 2.3) * liso(1.12, 1.45, fd);
+  // Pregas dos ombros, irradiando do pescoço.
+  if (y > 0.2) {
+    const ang = Math.atan2(y - 0.1, x) ;
+    const d = Math.hypot(x, y - 0.1);
+    const p = Math.sin(ang * 15 + 3 * fbm(x * 2.2, y * 2.2, 3)) * (0.5 + 0.5 * Math.sin(ang * 6.5 + 1));
+    h += 0.07 * p * liso(0.24, 0.5, y) * liso(0.1, 0.5, d);
+  }
+  // Trama fina do tecido.
+  h += 0.006 * (fbm(x * 42, y * 42, 2) - 0.5);
+  return h;
+}
+function tecido(x, y) {
+  const e = 0.006;
+  const hx = (altura(x + e, y) - altura(x - e, y)) / (2 * e);
+  const hy = (altura(x, y + e) - altura(x, y - e)) / (2 * e);
+  const n = 1 / Math.hypot(hx, hy, 1), nx = -hx * n, ny = -hy * n, nz = n;
+  const k = 0.62 * Math.hypot(1, 1, 1.15) ** -1;
+  const dif = clamp(nx * -0.55 + ny * -0.62 + nz * 0.56);             // luz principal: cima, à esquerda
+  const fria = clamp(nx * 0.8 + ny * 0.25 + nz * 0.12);               // luz de contorno: direita
+  const brilho = Math.pow(clamp(nx * -0.35 + ny * -0.4 + nz * 0.85), 34);
+  const fd = aberturaD(x, y);
+  const oclusao = liso(0.98, 1.3, fd) * (0.55 + 0.45 * liso(0.2, 0.55, Math.abs(y - 0.34) + 0.2));
+  return clamp((0.035 + 1.06 * Math.pow(dif, 1.45) + 0.4 * Math.pow(fria, 2.4) + 0.34 * brilho) * oclusao);
+}
+
+// Três interiores para o capuz.
+function bruma(x, y) {
+  const q = fbm(x * 2.6 + 4, y * 2.6, 4);
+  const f = fbm(x * 3.2 + q * 2.4, y * 6.2 - q * 1.6, 6);
+  return clamp(Math.pow(liso(0.32, 0.8, f), 1.6) * (0.3 + 0.8 * liso(-0.5, 0.25, y)));
+}
+function estrelasCampo(x, y, escala, lim) {
+  const gx = Math.floor(x * escala), gy = Math.floor(y * escala);
+  if (hash(gx + 11, gy + 3) < lim) return 0;
+  const ox = (gx + hash(gx, gy + 2)) / escala, oy = (gy + hash(gx + 5, gy)) / escala;
+  return Math.exp(-((Math.hypot(x - ox, y - oy) * escala * 4.2) ** 2)) * (0.35 + 0.65 * hash(gx + 1, gy + 9));
+}
+function espaco(x, y) {
+  const n = fbm(x * 2.2 + 8, y * 2.2 + 1, 6);
+  const m = fbm(x * 4 + n * 3, y * 4 - n * 2, 5);
+  const fuma = 0.38 * Math.pow(liso(0.4, 0.8, m), 1.4) * (0.5 + 0.5 * Math.sin((x - y) * 3 + 1));
+  const est = estrelasCampo(x, y, 20, 0.82) + estrelasCampo(x + 3, y, 44, 0.8) * 0.7;
+  return clamp(fuma + est);
+}
+function misto(x, y) {
+  const baixo = liso(-0.22, 0.2, y);
+  return clamp(bruma(x, y) * baixo * 1.1 + espaco(x, y) * (1 - baixo * 0.85));
+}
+
+function desenhar(cv, interior, N) {
+  const S = cv.width, ctx = cv.getContext('2d');
+  const fundo = ctx.createRadialGradient(S * 0.46, S * 0.42, S * 0.05, S * 0.5, S * 0.5, S * 0.76);
+  fundo.addColorStop(0, '#19191d'); fundo.addColorStop(0.55, '#0b0b0d'); fundo.addColorStop(1, '#030304');
+  ctx.fillStyle = fundo; ctx.fillRect(0, 0, S, S);
+
+  const passo = S / N, m = S * 0.47, e = S * 0.46;
+  const camada = document.createElement('canvas'); camada.width = camada.height = S;
+  const c = camada.getContext('2d'); c.fillStyle = '#fff';
+  const ponto = (px, py, r, a = 1) => { c.globalAlpha = a; c.beginPath(); c.arc(px, py, r, 0, 6.3); c.fill(); };
+
+  const alturaLinha = passo * 0.866;
+  let lin = 0;
+  for (let py = 0; py < S; py += alturaLinha, lin++) {
+    for (let px = (lin % 2) * passo / 2; px < S; px += passo) {
+      const x = (px - m) / e, y = (py - S / 2) / e;
+      const w = meiaLargura(y);
+      if (w === 0 || Math.abs(x) >= w) continue;
+      const fd = aberturaD(x, y);
+      const dentro = fd < 0.985;
+      let b = dentro ? interior(x, y) * (1 - Math.pow(fd, 6)) : tecido(x, y);
+
+      // A figura se desfaz para a direita, com borda orgânica.
+      const frente = x + 0.16 * y + 0.42 * (fbm(x * 2.6 + 2, y * 2.6 + 5, 4) - 0.5);
+      const t = liso(0.05, 0.56, frente);
+      const sorte = hash(px * 0.73, py * 0.41);
+      if (t > 0) {
+        if (sorte < t * 0.92) {
+          // Parte do que se solta vira partícula e segue o vento, encolhendo.
+          if (sorte < t * 0.5 && b > 0.05) {
+            const dist = (0.12 + 1.5 * Math.pow(hash(px * 1.3, py * 2.1), 2.1)) * e * (0.35 + t);
+            const curva = 0.55 * Math.sin(y * 3.2 + dist / e * 2.2 + 1.2 * ruido(x * 2, y * 2));
+            const qx = px + dist, qy = py - dist * (0.2 + 0.26 * curva);
+            const r = passo * (0.34 + 0.34 * hash(py, px)) * clamp(1.15 - dist / (e * 1.5), 0.2, 1);
+            ponto(qx, qy, r, clamp(1.05 - dist / (e * 1.7), 0.25, 1));
+          }
+          continue;
+        }
+        b *= 1 - 0.45 * t;
+      }
+      if (b < 0.012) continue;
+      ponto(px, py, passo * 0.56 * Math.sqrt(b), 1);
+    }
+  }
+  c.globalAlpha = 1;
+  // Brilho leve em volta dos pontos.
+  ctx.save(); ctx.globalAlpha = 0.34; ctx.filter = `blur(${S * 0.006}px)`; ctx.drawImage(camada, 0, 0); ctx.restore();
+  ctx.drawImage(camada, 0, 0);
+}
+
+const OPCOES = [
+  { id: 'bruma', t: 'A · Bruma', d: 'Névoa densa dentro do capuz, mais forte embaixo, como um rosto dissolvido.', f: bruma },
+  { id: 'espaco', t: 'B · Espaço', d: 'Estrelas e nebulosa no lugar do rosto. Quem veste o capuz virou céu.', f: espaco },
+  { id: 'misto', t: 'C · Bruma e espaço', d: 'Estrelas em cima, bruma embaixo. Reúne as duas ideias.', f: misto },
+];
+
+const so = new URLSearchParams(location.search).get('so');
+if (so) {
+  document.body.className = 'so';
+  const cv = document.createElement('canvas'); cv.width = cv.height = 2048;
+  document.body.appendChild(cv);
+  desenhar(cv, OPCOES.find(o => o.id === so).f, 210);
+} else {
+  const raiz = document.getElementById('grade');
+  for (const o of OPCOES) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1008;
+    desenhar(cv, o.f, 118);
+    const card = document.createElement('div'); card.className = 'card';
+    const t = document.createElement('div'); t.className = 'tile'; t.appendChild(cv); card.appendChild(t);
+    card.insertAdjacentHTML('beforeend', `<h3>${o.t}</h3><p>${o.d}</p>`);
+    const tam = document.createElement('div'); tam.className = 'tam';
+    for (const [cl, l] of [['p', 128], ['pp', 68]]) {
+      const r = document.createElement('canvas'); r.width = r.height = l;
+      const x = r.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cv, 0, 0, l, l);
+      const d = document.createElement('div'); d.className = 'tile ' + cl; d.appendChild(r); tam.appendChild(d);
+    }
+    tam.insertAdjacentText('beforeend', 'Dock · Finder');
+    card.appendChild(tam); raiz.appendChild(card);
+  }
+  const g = document.createElement('canvas'); g.width = g.height = 2048;
+  desenhar(g, misto, 210);
+  document.getElementById('grande').appendChild(g);
+}
+</script>
+</body>
+</html>

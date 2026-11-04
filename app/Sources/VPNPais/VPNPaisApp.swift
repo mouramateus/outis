@@ -31,7 +31,7 @@ enum Notificacoes {
     static func avisar(_ texto: String) {
         guard Bundle.main.bundleIdentifier != nil else { return }
         let n = UNMutableNotificationContent()
-        n.title = "VPN País"
+        n.title = "Outis"
         n.body = texto
         n.categoryIdentifier = categoria
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: n, trigger: nil))
@@ -66,7 +66,7 @@ struct VPNPaisApp: App {
     @State private var store = Modelo.store
 
     var body: some Scene {
-        Window("VPN País", id: "principal") {
+        Window("Outis", id: "principal") {
             MainView(store: store)
                 .preferredColorScheme(.dark)
         }

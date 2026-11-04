@@ -1,4 +1,6 @@
-# VPN por país para o celular, rodando no Mac
+# Outis
+
+VPN por país para o celular, rodando no Mac. *Outis* é "Ninguém" em grego: o nome que Odisseu dá ao ciclope.
 
 O celular conecta no Mac (app **Outline**) e sai na internet por outro país, com **Tor** e **ProtonVPN grátis** rodando no Mac.
 
@@ -18,7 +20,7 @@ No padrão, o Proton só vê um nó de saída do Tor, nunca o IP de casa, e os s
 
     app/build.sh       # compila (Apple Silicon + Intel), embute o CLI e instala em /Applications
 
-O app **VPN País** (macOS 14 ou mais novo) tem janela e ícone na barra de menus, e usa o CLI embutido nele, sem depender do SSD. Só foi testado no macOS 27. Precisa do OrbStack e, para a conta, do Tor Browser. Na primeira abertura, permita as notificações.
+O app **Outis** (macOS 14 ou mais novo) tem janela e ícone na barra de menus, e usa o CLI embutido nele, sem depender do SSD. Só foi testado no macOS 27. Precisa do OrbStack e, para a conta, do Tor Browser. Na primeira abertura, permita as notificações.
 
 Fechar a janela ou sair (⌘Q) **não** desliga a VPN.
 

@@ -1,9 +1,10 @@
-// Gera dist/AppIcon.icns: globo branco de linhas finas sobre fundo preto de vidro.
+// Gera dist/AppIcon.icns a partir de icone-1024.png, no recorte arredondado padrão do macOS.
 import AppKit
 
 let dist = CommandLine.arguments[1]
 let iconset = "\(dist)/AppIcon.iconset"
 try FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
+let arte = NSImage(contentsOfFile: "icone-1024.png")!
 
 func desenhar(_ lado: Int) -> Data {
     let s = CGFloat(lado)
@@ -12,19 +13,14 @@ func desenhar(_ lado: Int) -> Data {
                                bytesPerRow: 0, bitsPerPixel: 0)!
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-    let m = s * 0.09
-    let fundo = NSBezierPath(roundedRect: NSRect(x: m, y: m, width: s - 2 * m, height: s - 2 * m), xRadius: s * 0.19, yRadius: s * 0.19)
-    NSGradient(starting: NSColor(white: 0.20, alpha: 1), ending: NSColor(white: 0.02, alpha: 1))!.draw(in: fundo, angle: -70)
-    NSColor(white: 1, alpha: 0.18).setStroke()
-    fundo.lineWidth = s * 0.006
-    fundo.stroke()
-    let r = s * 0.27, c = NSPoint(x: s / 2, y: s / 2)
-    NSColor.white.setStroke()
-    let globo = NSBezierPath(ovalIn: NSRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
-    let meridiano = NSBezierPath(ovalIn: NSRect(x: c.x - r * 0.42, y: c.y - r, width: r * 0.84, height: 2 * r))
-    let equador = NSBezierPath()
-    equador.move(to: NSPoint(x: c.x - r, y: c.y)); equador.line(to: NSPoint(x: c.x + r, y: c.y))
-    for p in [globo, meridiano, equador] { p.lineWidth = s * 0.016; p.stroke() }
+    NSGraphicsContext.current?.imageInterpolation = .high
+    let m = s * 0.09, area = NSRect(x: m, y: m, width: s - 2 * m, height: s - 2 * m)
+    let forma = NSBezierPath(roundedRect: area, xRadius: s * 0.19, yRadius: s * 0.19)
+    forma.addClip()
+    arte.draw(in: area)
+    NSColor(white: 1, alpha: 0.16).setStroke()
+    forma.lineWidth = s * 0.006
+    forma.stroke()
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!
 }

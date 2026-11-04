@@ -524,7 +524,7 @@ cmd_caminho() {
 notify() {
   # Com o app aberto, é ele quem avisa (com o botão de religar); fechado, o aviso é daqui.
   if [ "${VPN_NOTIFY:-}" = app ] && pgrep -x VPNPais >/dev/null 2>&1; then return 0; fi
-  osascript -e "display notification \"$1\" with title \"VPN País\"" >/dev/null 2>&1 || true
+  osascript -e "display notification \"$1\" with title \"Outis\"" >/dev/null 2>&1 || true
 }
 
 stop_vigia() {

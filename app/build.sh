@@ -3,7 +3,7 @@
 # Uso: app/build.sh [--sem-instalar]
 set -euo pipefail
 cd "$(dirname "$0")"
-NOME="VPN País"
+NOME="Outis"
 DIST="dist/$NOME.app"
 
 swift build -c release --arch arm64 --arch x86_64
@@ -31,7 +31,7 @@ cat > "$DIST/Contents/Info.plist" <<PLIST
 PLIST
 codesign --force --deep --sign - "$DIST"
 [ "${1:-}" = --sem-instalar ] && { echo "$DIST"; exit 0; }
-osascript -e 'tell application "VPN País" to quit' >/dev/null 2>&1 || true
+osascript -e 'tell application "Outis" to quit' >/dev/null 2>&1 || true
 rm -rf "/Applications/$NOME.app"
 cp -R "$DIST" "/Applications/$NOME.app"
 echo "Instalado em /Applications/$NOME.app"

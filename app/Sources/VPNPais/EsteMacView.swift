@@ -25,7 +25,6 @@ struct AvisoConflito: View {
 
 struct EsteMacView: View {
     let store: StatusStore
-    @State private var saida = "auto"
 
     private var ligada: Bool { store.macEstado == "ligada" }
     private var desligada: Bool { store.macEstado == "desligada" }
@@ -52,7 +51,7 @@ struct EsteMacView: View {
     private var controle: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                TituloEstado(texto: tituloEstado, estado: ligada ? .ligado : store.macEstado == "conectando" || store.ocupado ? .conectando : .parado)
+                TituloEstado(texto: tituloEstado, estado: ligada ? .ligado : store.macEstado == "conectando" || store.atividade?.rota == .mac ? .conectando : .parado)
                 Spacer()
                 Selo(texto: "Só Tor · sem Proton")
             }
@@ -62,20 +61,20 @@ struct EsteMacView: View {
             if desligada {
                 HStack {
                     Text("País de saída:").font(.system(size: 12.5)).foregroundStyle(Cor.apagado)
-                    Picker("País de saída", selection: $saida) {
+                    Picker("País de saída", selection: Binding(get: { store.saidaMac }, set: { store.saidaMac = $0 })) {
                         Text("Tor escolhe (padrão)").tag("auto")
                         ForEach(store.paises) { p in Text("\(p.bandeira) \(p.nomeCurto)").tag(p.codigo) }
                     }
                     .labelsHidden().frame(width: 220)
                 }
-                if saida != "auto" {
+                if store.saidaMac != "auto" {
                     Text("Fixar um país restringe os nós de saída: fica um pouco menos anônimo e pode ficar mais lento.")
                         .font(.system(size: 11.5)).foregroundStyle(Cor.apagado)
                 }
             }
             HStack(spacing: 10) {
                 if desligada {
-                    Button("Ligar este Mac") { Task { await store.ligarMac(saida: saida) } }.buttonStyle(BotaoPrincipal())
+                    Button("Ligar este Mac") { Task { await store.ligarMac(saida: store.saidaMac) } }.buttonStyle(BotaoPrincipal())
                 } else if store.macEstado == "erro" {
                     Button("Religar") { Task { await store.ligarMac(saida: store.status?.macSaida) } }.buttonStyle(BotaoPrincipal())
                     Button("Desligar e voltar ao normal") { Task { await store.desligarMac() } }.buttonStyle(BotaoVidro())
@@ -91,11 +90,12 @@ struct EsteMacView: View {
     }
 
     private var tituloEstado: String {
+        if let a = store.atividade, a.rota == .mac { return a.texto }
         switch store.macEstado {
-        case "ligada": "Ligado"
-        case "conectando": "Conectando"
-        case "erro": "Erro"
-        default: store.ocupado ? "Conectando" : "Desligado"
+        case "ligada": return "Ligado"
+        case "conectando": return "Conectando"
+        case "erro": return "Erro"
+        default: return "Desligado"
         }
     }
 

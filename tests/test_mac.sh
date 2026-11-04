@@ -68,4 +68,18 @@ conflito_confirmado_derruba_o_mac() {
   VPN_ESPERA=1 $VPN up --derrubar-mac >/dev/null 2>&1
   assert_no_file "$FAKE_PROXY"; assert_contains "$(cat "$FAKE_LOG")" " up "
 }
-for f in mac_liga_e_ativa_proxy mac_sem_tor_provado_nao_ativa_proxy mac_bootstrap_falho_nao_ativa_proxy mac_desliga_restaura_tudo mac_tor_morto_com_proxy_e_erro_sem_tirar_proxy mac_saida_fixa mac_saida_invalida conflito_mac_com_celular_ligado conflito_confirmado_derruba_o_celular sem_conflito_com_orbstack_none conflito_celular_com_mac_ligado conflito_confirmado_derruba_o_mac; do t $f; done
+operacao_diz_se_liga_ou_desliga_o_mac() {
+  sleep 30 & A=$!
+  /bin/bash -c 'sleep 30; true' /x/vpn & L=$!; sleep 0.2
+  mkdir "$VPN_DATA/secrets/run/lock"; echo "$L" > "$VPN_DATA/secrets/run/lock/pid"; echo mac-off > "$VPN_DATA/secrets/run/lock/op"
+  assert_eq "$(mst | jqr .operacao)" mac-off
+  kill "$L" "$A" 2>/dev/null
+}
+mac_on_grava_operacao_de_ligar() {
+  export FAKE_TOR_LOG='nada'
+  VPN_ESPERA=4 /bin/bash "$ROOT/vpn" mac on >/dev/null 2>&1 & P=$!
+  sleep 1; assert_eq "$(mst | jqr .operacao)" mac-on
+  kill -TERM "$P"; sleep 2; wait "$P" 2>/dev/null
+  assert_no_file "$VPN_DATA/secrets/run/mac/tor.pid"; assert_no_file "$VPN_DATA/secrets/run/lock"
+}
+for f in operacao_diz_se_liga_ou_desliga_o_mac mac_on_grava_operacao_de_ligar mac_liga_e_ativa_proxy mac_sem_tor_provado_nao_ativa_proxy mac_bootstrap_falho_nao_ativa_proxy mac_desliga_restaura_tudo mac_tor_morto_com_proxy_e_erro_sem_tirar_proxy mac_saida_fixa mac_saida_invalida conflito_mac_com_celular_ligado conflito_confirmado_derruba_o_celular sem_conflito_com_orbstack_none conflito_celular_com_mac_ligado conflito_confirmado_derruba_o_mac; do t $f; done

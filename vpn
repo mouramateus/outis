@@ -180,7 +180,7 @@ on_term() {
     PERFIS="" compose down --remove-orphans >/dev/null 2>&1 || true
     rm -f "$RUN/modo"
   fi
-  if [ "$(cat "$LOCK/op" 2>/dev/null)" = mac ]; then mac_parar; fi
+  if [ "$(cat "$LOCK/op" 2>/dev/null)" = mac-on ]; then mac_parar; fi
   exit 143
 }
 
@@ -600,7 +600,7 @@ cmd_mac_on() {
     [ "$derrubar" = 1 ] || die "Com o OrbStack como está, se ligar o Mac, o celular vai perder a VPN. Confirme com --derrubar-celular."
     cmd_down_interno
   fi
-  take_lock mac
+  take_lock mac-on
   mac_parar
   (umask 077; mkdir -p "$MAC_DIR" "$SECRETS/mac-tor")
   chmod 700 "$SECRETS/mac-tor"
@@ -634,7 +634,7 @@ cmd_mac() {
   [ $# -gt 0 ] && shift
   case "$sub" in
     on) cmd_mac_on "$@" ;;
-    off) take_lock mac; mac_parar; info "Desligado." ;;
+    off) take_lock mac-off; mac_parar; info "Desligado." ;;
     *) die "Uso: ./vpn mac on [--saida xx] | mac off" ;;
   esac
 }

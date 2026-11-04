@@ -82,7 +82,11 @@ struct MainView: View {
     }
 
     private var textoProtecao: (String, String) {
-        guard store.estado == .ligada else { return ("Kill switch inativo", "A VPN está desligada: o celular usa a internet normal.") }
+        if store.atividade == .reconectando { return ("Kill switch ativo", "O túnel está voltando. Nada sai pelo IP de casa.") }
+        if let a = store.atividade { return (a.texto, "Aguarde terminar para mudar outra coisa.") }
+        guard store.estado == .ligada else {
+            return ("Kill switch inativo", store.macEstado == "ligada" ? "Só este Mac está ligado, pelo Tor." : "A VPN está desligada: o celular usa a internet normal.")
+        }
         if store.status?.modo == .sotor { return ("Sem saída direta", "Tudo passa pelo Tor.") }
         return ("Kill switch ativo", "Se o túnel cair, o Mac bloqueia a saída pelo IP de casa.")
     }

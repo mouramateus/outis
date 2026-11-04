@@ -29,6 +29,8 @@ Fechar a janela ou sair (⌘Q) **não** desliga a VPN.
 - **Rota 2, celular:** a cadeia acima, no OrbStack.
 - **Rota 1, este Mac (aba "Este Mac"):** Tor nativo embutido no app e proxy do sistema, sem OrbStack nem conta do Proton. Vale só para apps que respeitam o proxy: navegadores entram; Terminal, Docker, Mail, chamadas e jogos não. O proxy só liga depois de o Tor provar que funciona. Se o Tor morrer, ele fica ligado de propósito: os navegadores ficam sem internet em vez de sair pelo IP de casa, e o app oferece religar ou desligar.
 
+Na tela inicial e no menu da barra, o seletor **Celular · Este Mac · Os dois** define para quem o ligar e o desligar apontam, e o botão sempre diz o que vai fazer. Enquanto uma ação roda, o app mostra qual é, mesmo que tenha vindo do terminal.
+
 Com o OrbStack em `network_proxy: auto`, o proxy do sistema tira a internet dos containers, então as duas rotas não funcionam juntas: o Outis avisa qual vai cair e pede confirmação. Com `orb config set network_proxy none` elas convivem e o aviso some. Essa mudança vale para todo o OrbStack.
 
 ## Terminal

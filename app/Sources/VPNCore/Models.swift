@@ -31,6 +31,54 @@ public struct Status: Decodable, Equatable, Sendable {
     public var conflitoOrbstack: Bool?
 }
 
+public enum Rota: Sendable {
+    case celular, mac
+    public var nome: String { self == .celular ? "celular" : "este Mac" }
+}
+
+/// Para quem o ligar/desligar aponta.
+public enum Alvo: String, CaseIterable, Identifiable, Sendable {
+    case celular, mac, ambos
+    public var id: String { rawValue }
+    public var rotas: [Rota] {
+        switch self {
+        case .celular: [.celular]
+        case .mac: [.mac]
+        case .ambos: [.celular, .mac]
+        }
+    }
+    public var nome: String {
+        switch self {
+        case .celular: "Celular"
+        case .mac: "Este Mac"
+        case .ambos: "Os dois"
+        }
+    }
+}
+
+/// O que está acontecendo agora, venha do app ou do terminal.
+public enum Atividade: Equatable, Sendable {
+    case ligando(Rota), desligando(Rota), cancelando, reconectando
+
+    public var texto: String {
+        switch self {
+        case .ligando(.celular): "Ligando o celular"
+        case .ligando(.mac): "Ligando este Mac"
+        case .desligando(.celular): "Desligando o celular"
+        case .desligando(.mac): "Desligando este Mac"
+        case .cancelando: "Cancelando"
+        case .reconectando: "Reconectando o celular"
+        }
+    }
+
+    public var rota: Rota {
+        switch self {
+        case .ligando(let r), .desligando(let r): r
+        case .cancelando, .reconectando: .celular
+        }
+    }
+}
+
 /// Apps da Rota 1: só entram os que seguem o proxy do sistema.
 public enum AppsDoMac {
     static let navegadores = ["Safari", "Google Chrome", "Microsoft Edge", "Brave Browser", "Firefox", "Arc", "Opera", "Vivaldi"]

@@ -24,6 +24,9 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
     public private(set) var redeMudou = false
     public private(set) var ipMacAnterior: String?
     public private(set) var confirmacao: String?
+    public var alvo: Alvo { didSet { defaults.set(alvo.rawValue, forKey: "alvo") } }
+    public var saidaMac: String { didSet { defaults.set(saidaMac, forKey: "saidaMac") } }
+    private var acaoAtual: Atividade?
     public var mensagem: String?
     public var janelaAberta = false
     public var abaCelularAberta = false
@@ -49,6 +52,43 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
         self.cli = cli
         self.defaults = defaults
         self.notificar = notificar
+        alvo = Alvo(rawValue: defaults.string(forKey: "alvo") ?? "") ?? .celular
+        saidaMac = defaults.string(forKey: "saidaMac") ?? "auto"
+    }
+
+    /// Ação do app em andamento, a do terminal (`operacao`) ou a reconexão sozinha do túnel.
+    public var atividade: Atividade? {
+        if let acaoAtual { return acaoAtual }
+        switch status?.operacao {
+        case "up": return .ligando(.celular)
+        case "down": return .desligando(.celular)
+        case "mac-on": return .ligando(.mac)
+        case "mac-off": return .desligando(.mac)
+        default: return estado == .conectando ? .reconectando : nil
+        }
+    }
+
+    private func ativa(_ r: Rota) -> Bool { r == .celular ? celularAtivo : macAtivo }
+    public var faltam: [Rota] { alvo.rotas.filter { !ativa($0) } }
+    public var ativas: [Rota] { alvo.rotas.filter(ativa) }
+
+    private func rotulo(_ verbo: String, _ rotas: [Rota]) -> String {
+        rotas.count == 2 ? "\(verbo) os dois" : "\(verbo) \(rotas.first?.nome ?? "")"
+    }
+    public var rotuloLigar: String { rotulo("Ligar", faltam) }
+    public var rotuloDesligar: String { rotulo("Desligar", ativas) }
+
+    public func ligarAlvo() async {
+        for r in faltam {
+            if r == .celular { await ligar() } else { await ligarMac(saida: saidaMac) }
+            if confirmacao != nil { return }
+        }
+    }
+
+    public func desligarAlvo() async {
+        for r in ativas.reversed() {
+            if r == .celular { await desligar() } else { await desligarMac() }
+        }
     }
 
     nonisolated public static func intervalo(janelaAberta: Bool, estado: Estado) -> Int {
@@ -84,7 +124,7 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
         if ipMudou || celular == nil { celular = try? await cli.json(Celular.self, ["celular", "--json"]) }
         avaliarRede(novo.ipMac)
         avaliarEvento(novo)
-        if abaCelularAberta, let ativas = try? await cli.json([Conexao].self, ["conexoes", "--json"]) {
+        if abaCelularAberta || janelaAberta, let ativas = try? await cli.json([Conexao].self, ["conexoes", "--json"]) {
             conexoes = Self.mesclar(conexoes, ativas: ativas, agora: Date())
         }
     }
@@ -137,6 +177,8 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
     private func acao(_ args: [String]) async {
         guard !ocupado else { return }
         acaoEmAndamento = true
+        acaoAtual = args.first == "mac" ? (args.dropFirst().first == "on" ? .ligando(.mac) : .desligando(.mac))
+            : args.first == "down" ? .desligando(.celular) : .ligando(.celular)
         cancelado = false
         mensagem = nil
         etapa = nil
@@ -154,8 +196,10 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
         } catch {
             mensagem = "O comando falhou."
         }
-        if cancelado { _ = try? await cli.run(["down"], stdin: nil, timeout: 60) }
+        // O CLI limpa a Rota 1 sozinho; `down` aqui derrubaria o celular.
+        if cancelado && args.first == "up" { _ = try? await cli.run(["down"], stdin: nil, timeout: 60) }
         acaoEmAndamento = false
+        acaoAtual = nil
         etapa = nil
         inicioConexao = nil
         await atualizar()
@@ -213,6 +257,7 @@ public enum Etapa: String, Sendable { case tor, proton, conferindo }
 
     public func cancelar() {
         cancelado = true
+        acaoAtual = .cancelando
         cli.cancelar()
     }
 

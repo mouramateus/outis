@@ -37,9 +37,7 @@ struct MenuBarIcon: View {
     var body: some View {
         HStack(spacing: 4) {
             simbolo
-            if store.estado == .ligada, store.status?.modo != .sotor, let c = store.status?.codigo {
-                Text(c.uppercased())
-            }
+            if let sigla { Text(sigla) }
         }
         .accessibilityLabel(rotulo)
     }
@@ -47,21 +45,34 @@ struct MenuBarIcon: View {
     @ViewBuilder private var simbolo: some View {
         if store.ocupado || store.estado == .conectando {
             Image(nsImage: Capuz.imagem(Capuz.desfazendo))
-        } else if store.estado == .erro {
+        } else if store.estado == .erro || store.macEstado == "erro" {
             Image(systemName: "exclamationmark.circle")
-        } else if store.estado == .ligada {
+        } else if store.estado == .ligada || store.macEstado == "ligada" {
             Image(nsImage: Capuz.imagem(Capuz.inteiro))
         } else {
             Image(nsImage: Capuz.imagem(Capuz.inteiro, opacidade: 0.45))
         }
     }
 
+    /// País do celular e, se o Mac estiver na rota dele, MAC.
+    private var sigla: String? {
+        var partes: [String] = []
+        if store.estado == .ligada {
+            partes.append(store.status?.modo == .sotor ? "TOR" : store.status?.codigo?.uppercased() ?? "")
+        }
+        if store.macEstado == "ligada" { partes.append("MAC") }
+        return partes.isEmpty ? nil : partes.joined(separator: "+")
+    }
+
     private var rotulo: String {
+        if let a = store.atividade { return a.texto }
+        if store.macEstado == "ligada", store.estado != .ligada { return "Este Mac ligado, celular desligado" }
+        if store.macEstado == "ligada" { return "Celular e este Mac ligados" }
         switch store.estado {
-        case .ligada: "VPN ligada"
-        case .conectando: "VPN conectando"
-        case .erro: "VPN com erro"
-        case .desligada: "VPN desligada"
+        case .ligada: return "VPN ligada"
+        case .conectando: return "VPN conectando"
+        case .erro: return "VPN com erro"
+        case .desligada: return "VPN desligada"
         }
     }
 }

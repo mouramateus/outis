@@ -225,6 +225,115 @@ private final class FakeCLI: CLIProtocol, @unchecked Sendable {
     #expect(g.fora.contains { $0.hasPrefix("Terminal") })
 }
 
+@MainActor @Test func alvoFicaGuardado() {
+    let d = UserDefaults(suiteName: "teste-\(UUID().uuidString)")!
+    StatusStore(cli: FakeCLI(), defaults: d).alvo = .ambos
+    #expect(StatusStore(cli: FakeCLI(), defaults: d).alvo == .ambos)
+}
+
+@MainActor @Test func alvoDizOQueFaltaEOQueEstaAtivo() async {
+    let (s, _) = novoStore(FakeCLI(status: FakeCLI.json(estado: "ligada")))
+    await s.atualizar()
+    s.alvo = .ambos
+    #expect(s.faltam == [.mac])
+    #expect(s.ativas == [.celular])
+    #expect(s.rotuloLigar == "Ligar este Mac")
+    #expect(s.rotuloDesligar == "Desligar celular")
+    s.alvo = .mac
+    #expect(s.faltam == [.mac])
+    #expect(s.ativas.isEmpty)
+}
+
+@MainActor @Test func ligarOsDoisUmDeCadaVez() async {
+    let cli = FakeCLI()
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    s.alvo = .ambos
+    #expect(s.rotuloLigar == "Ligar os dois")
+    await s.ligarAlvo()
+    let acoes = cli.chamadas.filter { $0.first == "up" || $0.first == "mac" }
+    #expect(acoes == [["up"], ["mac", "on", "--saida", "auto"]])
+}
+
+@MainActor @Test func alvoMacNaoTocaNoCelular() async {
+    let cli = FakeCLI()
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    s.alvo = .mac
+    await s.ligarAlvo()
+    #expect(!cli.chamadas.contains { $0.first == "up" })
+    #expect(cli.chamadas.contains { $0.first == "mac" })
+}
+
+@MainActor @Test func desligarSoOQueEstaNoAlvo() async {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "ligada", mac: "ligada"))
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    s.alvo = .mac
+    #expect(s.rotuloDesligar == "Desligar este Mac")
+    await s.desligarAlvo()
+    #expect(cli.chamadas.contains { $0 == ["mac", "off"] })
+    #expect(!cli.chamadas.contains { $0 == ["down"] })
+}
+
+@MainActor @Test func atividadeMostraODesligando() async throws {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "ligada")); cli.demora = .milliseconds(200)
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    async let a: Void = s.desligar()
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(s.atividade == .desligando(.celular))
+    #expect(s.atividade?.texto == "Desligando o celular")
+    await a
+    #expect(s.atividade == nil)
+}
+
+@MainActor @Test func atividadeDoMacNaoViraConectandoNoCelular() async throws {
+    let cli = FakeCLI(); cli.demora = .milliseconds(200)
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    async let a: Void = s.ligarMac(saida: nil)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(s.atividade == .ligando(.mac))
+    #expect(s.atividade?.rota == .mac)
+    await a
+}
+
+@MainActor @Test func atividadeVindaDoTerminal() async {
+    for (op, esperado) in [("up", Atividade.ligando(.celular)), ("down", .desligando(.celular)), ("mac-on", .ligando(.mac)), ("mac-off", .desligando(.mac))] {
+        let (s, _) = novoStore(FakeCLI(status: FakeCLI.json(operacao: "\"\(op)\"")))
+        await s.atualizar()
+        #expect(s.atividade == esperado)
+    }
+}
+
+@MainActor @Test func quedaDeSaudeViraReconectando() async {
+    let (s, _) = novoStore(FakeCLI(status: FakeCLI.json(estado: "conectando")))
+    await s.atualizar()
+    #expect(s.atividade == .reconectando)
+}
+
+@MainActor @Test func cancelarOMacNaoDerrubaOCelular() async throws {
+    let cli = FakeCLI(status: FakeCLI.json(estado: "ligada")); cli.demora = .milliseconds(150)
+    let (s, _) = novoStore(cli)
+    await s.atualizar()
+    async let a: Void = s.ligarMac(saida: nil)
+    try await Task.sleep(for: .milliseconds(40))
+    s.cancelar()
+    await a
+    #expect(!cli.chamadas.contains { $0 == ["down"] })
+}
+
+@MainActor @Test func cancelarMostraCancelando() async throws {
+    let cli = FakeCLI(); cli.demora = .milliseconds(200)
+    let (s, _) = novoStore(cli)
+    async let a: Void = s.ligar()
+    try await Task.sleep(for: .milliseconds(50))
+    s.cancelar()
+    #expect(s.atividade == .cancelando)
+    await a
+}
+
 @MainActor @Test func redeMudouQuandoIpDoMacMuda() async {
     let cli = FakeCLI()
     let d = UserDefaults(suiteName: "teste-\(UUID().uuidString)")!

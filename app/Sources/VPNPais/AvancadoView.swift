@@ -15,10 +15,10 @@ struct AvancadoView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Caminho do celular").font(.system(size: 16, weight: .semibold))
-                opcao(.tor, "Tor + Proton", selo: "padrão · recomendado",
-                      "iPhone → Mac → Tor → Proton → internet. Você escolhe o país, e o Proton não vê o seu IP. É lento (~95 KB/s).")
+                opcao(.tor, "Tor + VPN", selo: "padrão · recomendado",
+                      "iPhone → Mac → Tor → VPN → internet. Você escolhe o país, e a VPN não vê o seu IP. É lento (~95 KB/s).")
                 opcao(.sotor, "Só Tor (sem VPN)", selo: "experimental",
-                      "iPhone → Mac → Tor → internet. Não usa a conta do Proton e continua anônimo, mas muitos sites bloqueiam IPs do Tor. Sem UDP: teste no iPhone antes de confiar.") {
+                      "iPhone → Mac → Tor → internet. Não usa a conta da VPN e continua anônimo, mas muitos sites bloqueiam IPs do Tor. Sem UDP: teste no iPhone antes de confiar.") {
                     HStack {
                         Text("País de saída:").font(.system(size: 12.5)).foregroundStyle(Cor.apagado)
                         Picker("País de saída", selection: $saida) {
@@ -30,10 +30,10 @@ struct AvancadoView: View {
                     Text("Fixar um país restringe os nós de saída: fica um pouco menos anônimo e pode ficar mais lento.")
                         .font(.system(size: 11.5)).foregroundStyle(Cor.apagado)
                 }
-                opcao(.proton, "Só Proton (sem Tor)", selo: "vale para uma conexão",
-                      "iPhone → Mac → Proton → internet. É bem mais rápido.") {
+                opcao(.proton, "Só VPN (sem Tor)", selo: "vale para uma conexão",
+                      "iPhone → Mac → VPN → internet. É bem mais rápido.") {
                     VStack(alignment: .leading, spacing: 8) {
-                        (Text("⚠︎ O Proton passa a ver o IP da sua casa ligado à sua conta anônima. Isso não tem volta: mesmo voltando para o Tor, a conta continua ligada a você. Para usar, digite ") + Text("ENTENDO").fontWeight(.bold) + Text(":"))
+                        (Text("⚠︎ A VPN passa a ver o IP da sua casa ligado à sua conta anônima. Isso não tem volta: mesmo voltando para o Tor, a conta continua ligada a você. Para usar, digite ") + Text("ENTENDO").fontWeight(.bold) + Text(":"))
                             .font(.system(size: 12.5)).fixedSize(horizontal: false, vertical: true)
                         HStack {
                             TextField("", text: $confirmacao).textFieldStyle(.roundedBorder).frame(width: 140)

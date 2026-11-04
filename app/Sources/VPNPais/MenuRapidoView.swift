@@ -21,7 +21,7 @@ struct MenuRapidoView: View {
                         .font(.system(size: 12.5).monospacedDigit()).foregroundStyle(Cor.apagado)
                 }
                 if store.status?.modo == .proton && store.estado == .ligada {
-                    Text("Só Proton: o Proton vê seu IP").font(.system(size: 12, weight: .semibold))
+                    Text("Só VPN: a VPN vê seu IP").font(.system(size: 12, weight: .semibold))
                 }
             }
             SeletorAlvo(store: store)

@@ -6,7 +6,7 @@ import VPNCore
 @MainActor func abrirNoTor(_ endereco: String, store: StatusStore) {
     let app = URL(fileURLWithPath: "/Applications/Tor Browser.app")
     guard let url = URL(string: endereco), FileManager.default.fileExists(atPath: app.path) else {
-        store.mensagem = "Instale o Tor Browser (torproject.org): a conta do Proton só deve ser aberta por ele."
+        store.mensagem = "Instale o Tor Browser (torproject.org): a conta da VPN só deve ser aberta por ele."
         return
     }
     NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
@@ -48,15 +48,15 @@ struct ContaView: View {
 
     private var resumo: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Conta ProtonVPN Free").font(.system(size: 16, weight: .semibold)); Spacer(); Selo(texto: "✓ credenciais salvas") }
-            Text("Usada só pelo Tor. Abra o painel do Proton apenas pelo Tor Browser.")
+            HStack { Text("Conta da VPN").font(.system(size: 16, weight: .semibold)); Spacer(); Selo(texto: "✓ credenciais salvas") }
+            Text("Provedor: ProtonVPN (plano grátis). Conta usada só pelo Tor: abra o painel apenas pelo Tor Browser.")
                 .font(.system(size: 13)).foregroundStyle(Cor.apagado)
             etiquetas
             Text("Arquivos .ovpn por país").font(.system(size: 11.5)).foregroundStyle(Cor.apagado)
             HStack(spacing: 8) {
                 Button("Trocar credenciais") { trocando.toggle() }.buttonStyle(BotaoVidro())
                 importar
-                Button("Painel do Proton (Tor Browser) ↗") { abrirNoTor("https://account.protonvpn.com/account", store: store) }.buttonStyle(BotaoVidro())
+                Button("Painel do provedor (Tor Browser) ↗") { abrirNoTor("https://account.protonvpn.com/account", store: store) }.buttonStyle(BotaoVidro())
             }
             .padding(.top, 8)
         }
@@ -98,7 +98,7 @@ struct ContaView: View {
                     Button("Downloads ↗") { abrirNoTor("https://account.protonvpn.com/downloads", store: store) }.buttonStyle(BotaoVidro())
                 }
             }
-            passo(2, "Credenciais OpenVPN", feito: temCredenciais, "Não é o login do Proton: fica em Conta → Nome de usuário OpenVPN / IKEv2.") {
+            passo(2, "Credenciais OpenVPN", feito: temCredenciais, "Não é o login da conta: fica em Conta → Nome de usuário OpenVPN / IKEv2.") {
                 if !temCredenciais { formulario }
             }
             passo(3, "Arquivos .ovpn", feito: totalOvpn > 0, "Importe da pasta Downloads.") { importar }

@@ -72,3 +72,7 @@ Duas rotas, dois interruptores no mesmo app: **Rota 1, este Mac** (nativa, sem O
 - **Alcance:** só apps que respeitam o proxy. A aba "Este Mac" lista o que está incluído e o que não está. Mac inteiro fica fora de escopo.
 - **Conflito:** com o OrbStack em `network_proxy: auto`, o proxy do sistema derruba os containers (medido). Ligar uma rota com a outra ativa mostra o aviso de que a outra vai cair e pede confirmação. Com `network_proxy: none` as duas convivem e o aviso some. O Outis não muda a configuração do OrbStack sozinho.
 - **Segurança:** o proxy só é ativado depois de o Tor provar que funciona. Se o Tor morrer, o proxy fica: navegadores ficam sem internet em vez de sair pelo IP de casa, e o app oferece religar ou desligar.
+
+## Linguagem e contas (decisão do dono, 2026-11-04)
+
+Na interface, o que é VPN se chama **VPN**: o Proton é só o fornecedor, citado apenas como provedor na aba Conta. Por dentro, nomes técnicos seguem como estão. Múltiplas contas do plano grátis ficam de fora: os Termos do Proton (modificados em 2026-10-09) proíbem ter várias contas grátis e preveem suspensão.

@@ -53,7 +53,7 @@ struct EsteMacView: View {
             HStack {
                 TituloEstado(texto: tituloEstado, estado: ligada ? .ligado : store.macEstado == "conectando" || store.atividade?.rota == .mac ? .conectando : .parado)
                 Spacer()
-                Selo(texto: "Só Tor · sem Proton")
+                Selo(texto: "Só Tor · sem VPN")
             }
             Text(ligada ? "Este Mac pelo Tor" : store.macEstado == "erro" ? "O Tor parou" : "Este Mac fora da VPN")
                 .font(.system(size: 26, weight: .semibold))
@@ -103,7 +103,7 @@ struct EsteMacView: View {
         switch store.macEstado {
         case "ligada": "Saída pelo Tor (\(store.status?.macIp ?? "varia")). Muitos sites pedem captcha ou bloqueiam, e fica lento."
         case "erro": "Os apps abaixo estão sem internet, de propósito: sem o Tor, eles sairiam pelo IP de casa."
-        default: "Liga o Tor neste Mac, sem OrbStack e sem usar a conta do Proton. Só os apps abaixo passam por ele."
+        default: "Liga o Tor neste Mac, sem OrbStack e sem usar a conta da VPN. Só os apps abaixo passam por ele."
         }
     }
 

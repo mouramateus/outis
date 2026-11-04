@@ -6,13 +6,13 @@ O celular conecta no Mac (app **Outline**) e sai na internet por outro país, co
 
 Três caminhos:
 
-    Tor + Proton (padrão):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─OpenVPN TCP─▶ Proton ─▶ internet
+    Tor + VPN (padrão):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─OpenVPN TCP─▶ Proton ─▶ internet
     Só Tor (experimental):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─▶ internet
-    Só Proton:              iPhone (Outline) ─▶ Mac :8388 ─▶ Proton ─▶ internet
+    Só VPN:              iPhone (Outline) ─▶ Mac :8388 ─▶ Proton ─▶ internet
 
 No padrão, o Proton só vê um nó de saída do Tor, nunca o IP de casa, e os sites veem um IP do Proton no país escolhido. Custo: fica lento (medido em 2026-11-03: ~95 KB/s e ~4 s para abrir uma página).
 
-**Só Proton** quebra o anonimato da conta para sempre: o Proton passa a ver o IP de casa. Por isso exige confirmação e vale para uma conexão só. Ele nunca foi testado com a conta real, de propósito.
+**Só VPN** quebra o anonimato da conta para sempre: o Proton passa a ver o IP de casa. Por isso exige confirmação e vale para uma conexão só. Ele nunca foi testado com a conta real, de propósito.
 
 **Só Tor** não tem UDP: é experimental até ser testado com o Outline num iPhone de verdade.
 
@@ -64,7 +64,7 @@ Protegido, e conferido em 2026-11-03:
 - **O celular não tem kill switch próprio.** Se o Mac dormir, a VPN cair ou a rede mudar, o celular volta a navegar pela internet de casa.
   - Android: Configurações → VPN → Outline → ative "VPN sempre ativa" e "Bloquear conexões sem VPN".
   - iPhone: não há bloqueio garantido; confira o ícone do Outline antes de usar.
-- **Identidade:** o Proton só não vê seu IP se a conta for usada **exclusivamente pelo Tor** (cadastro, painel e conexões). Sem Só Proton com essa conta, sem abrir o painel num navegador comum.
+- **Identidade:** o Proton só não vê seu IP se a conta for usada **exclusivamente pelo Tor** (cadastro, painel e conexões). Sem Só VPN com essa conta, sem abrir o painel num navegador comum.
 - **O que o celular entrega por si só:** fuso horário, idioma, GPS e contas logadas continuam dizendo quem e onde você está. IPv6 do celular não foi testado.
 - Streaming (Netflix etc.) costuma bloquear IPs de VPN grátis. Modo Tor é lento (~95 KB/s).
 

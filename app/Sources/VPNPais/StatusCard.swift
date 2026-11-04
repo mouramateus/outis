@@ -126,8 +126,8 @@ struct StatusCard: View {
     private var seloCaminho: String {
         switch modo {
         case .sotor: "Só Tor · experimental"
-        case .proton: "Só Proton"
-        case .tor: s?.torConferido == true ? "✓ Tor + Proton conferido" : "Tor + Proton"
+        case .proton: "Só VPN"
+        case .tor: s?.torConferido == true ? "✓ Tor + VPN conferido" : "Tor + VPN"
         }
     }
 
@@ -161,10 +161,10 @@ struct StatusCard: View {
             Text(nomePais).font(.system(size: 28, weight: .semibold)).padding(.top, 12)
             Text(linhaIp).font(.system(size: 13.5).monospacedDigit()).foregroundStyle(Cor.apagado).padding(.top, 3)
             if modo == .proton {
-                Text("Só Proton: o Proton vê seu IP").font(.system(size: 12, weight: .semibold)).padding(.top, 8)
+                Text("Só VPN: a VPN vê seu IP").font(.system(size: 12, weight: .semibold)).padding(.top, 8)
             }
             if s?.aviso == "pais_diferente", let p = s?.paisIp {
-                Text("O Proton localiza este IP em \(p).").font(.system(size: 12)).foregroundStyle(Cor.apagado).padding(.top, 6)
+                Text("A VPN localiza este IP em \(p).").font(.system(size: 12)).foregroundStyle(Cor.apagado).padding(.top, 6)
             }
             rota.padding(.top, 12)
             LinhaRota(store: store, rota: .mac).padding(.top, 10)
@@ -194,7 +194,7 @@ struct StatusCard: View {
         HStack(spacing: 6) {
             pedaco("iPhone", forte: true); fio; pedaco("Mac", forte: true); fio
             if modo != .proton { pedaco("Tor ×3", forte: false); fio }
-            if modo != .sotor { pedaco("Proton \(store.paisAtual?.nomeCurto ?? "")", forte: true); fio }
+            if modo != .sotor { pedaco("VPN \(store.paisAtual?.nomeCurto ?? "")", forte: true); fio }
             pedaco("internet", forte: false)
         }
     }
@@ -223,7 +223,7 @@ struct StatusCard: View {
                     } else {
                         if modo != .proton { linhaEtapa("Tor conectado", "Conectando ao Tor", .tor) }
                         if modo != .sotor {
-                            linhaEtapa("Proton conectado", "Conectando ao Proton", .proton)
+                            linhaEtapa("VPN conectada", "Conectando à VPN", .proton)
                             linhaEtapa("Caminho e IP conferidos", "Conferindo caminho e IP", .conferindo)
                         }
                     }

@@ -24,14 +24,14 @@ usage() {
 Uso: ./vpn <comando>
 
   init                       cria a configuração (senha do celular)
-  setup-tor                  guarda as credenciais OpenVPN e importa os .ovpn do Proton
+  setup-tor                  guarda as credenciais OpenVPN e importa os .ovpn da VPN
   credenciais-openvpn        lê usuário e senha do stdin e guarda no Keychain
   importar-ovpn [pastas]     importa .ovpn grátis em TCP (padrão: ~/Downloads)
   up [país] [opções]         liga (padrão: último país e caminho)
-      --tor                    Mac -> Tor -> Proton (padrão, recomendado)
+      --tor                    Mac -> Tor -> VPN (padrão, recomendado)
       --so-tor [--saida xx]    Mac -> Tor (sem conta; xx fixa o país de saída, auto = Tor escolhe)
       --so-proton --confirmo-quebrar-anonimato
-                               Mac -> Proton, vale só para esta conexão: o Proton vê o IP de casa
+                               Mac -> VPN, vale só para esta conexão: a VPN vê o IP de casa
   pais <país>                troca o país, mantendo o caminho
   mac on [--saida xx]        Rota 1: este Mac pelo Tor, nos apps que respeitam o proxy do sistema
   mac off                    desliga a Rota 1 e restaura o proxy
@@ -334,7 +334,7 @@ ovpn_escolhido() {
   local cc files
   cc="$(code_of "$1")"
   files="$(ls "$SECRETS"/ovpn/"$cc"-free-*.ovpn 2>/dev/null || true)"
-  [ -n "$files" ] || die "Sem arquivo .ovpn de $1. Baixe no painel do Proton (OpenVPN, GNU/Linux, TCP, servidor grátis) e importe."
+  [ -n "$files" ] || die "Sem arquivo .ovpn de $1. Baixe no painel da VPN (OpenVPN, GNU/Linux, TCP, servidor grátis) e importe."
   printf '%s\n' "$files" | awk 'BEGIN { srand() } { a[NR] = $0 } END { print a[int(rand() * NR) + 1] }'
 }
 
@@ -398,9 +398,9 @@ classificar_falha() {
   logs="$(docker logs --tail 100 "$CONTAINER" 2>&1 || true)"
   case "$logs" in
     *AUTH_FAILED*|*"auth-failure"*|*"Authentication failed"*)
-      falhar credenciais "O Proton recusou o usuário ou a senha OpenVPN." ;;
+      falhar credenciais "A VPN recusou o usuário ou a senha OpenVPN." ;;
     *"Too many"*|*"too many"*|*"session limit"*|*"Maximum"*)
-      falhar limite "Outro aparelho já usa sua conta grátis do Proton." ;;
+      falhar limite "Outro aparelho já usa sua conta grátis da VPN." ;;
   esac
   falhar tunel "O túnel não conectou. Tente de novo ou outro país."
 }
@@ -426,7 +426,7 @@ start() {
   case "$m" in
     sotor) prepare_gost; info "Conectando pelo Tor... pode levar até 2 min." ;;
     tor) prepare_ovpn "$ovpn" tor; info "Conectando em $country via Tor ($(basename "$ovpn" .ovpn))... pode levar até 2 min." ;;
-    proton) prepare_ovpn "$ovpn" proton; info "Conectando em $country direto no Proton..." ;;
+    proton) prepare_ovpn "$ovpn" proton; info "Conectando em $country direto na VPN..." ;;
   esac
   if [ "$m" = tor ] && [ "$anterior" = tor ] && is_running "$TOR_CONTAINER"; then
     # Só troca o servidor do Proton: o Tor continua de pé (mais rápido, mesmos nós de entrada).
@@ -449,7 +449,7 @@ start() {
     esperar "$ESPERA" health_ok || classificar_falha
     info "etapa: conferindo"
     if [ "$m" = tor ] && ! tor_path_ok; then
-      falhar fora_do_tor "A conexão com o Proton não passou pelo Tor; tudo foi desligado por segurança."
+      falhar fora_do_tor "A conexão com a VPN não passou pelo Tor; tudo foi desligado por segurança."
     fi
     esperar 3 ip_ok || info "Ainda sem o IP de saída; o vigia continua tentando."
   fi
@@ -477,7 +477,7 @@ cmd_up() {
   if [ "$m" = sotor ] && [ -z "$saida" ]; then saida="$(env_get VPN_SAIDA)"; fi
   case "${saida:-auto}" in auto|[a-z][a-z]) ;; *) die "País de saída inválido: $saida" ;; esac
   if [ "$m" = proton ] && [ "$confirmo" != 1 ]; then
-    die "Só Proton quebra o anonimato da conta: o Proton vê o IP de casa. Para ligar, use --confirmo-quebrar-anonimato."
+    die "Só VPN quebra o anonimato da conta: a VPN vê o IP de casa. Para ligar, use --confirmo-quebrar-anonimato."
   fi
   if [ ${#args[@]} -gt 0 ]; then
     c="$(country_of "${args[*]}")"
@@ -662,7 +662,7 @@ cmd_caminho() {
   local m="${1:-}" saida=""
   need_env
   [ "${2:-}" != --saida ] || saida="${3:-}"
-  case "$m" in tor|sotor) ;; *) die "Caminho inválido. Use tor ou sotor (Só Proton vale só para uma conexão: ./vpn up --so-proton)." ;; esac
+  case "$m" in tor|sotor) ;; *) die "Caminho inválido. Use tor ou sotor (Só VPN vale só para uma conexão: ./vpn up --so-proton)." ;; esac
   case "${saida:-auto}" in auto|[a-z][a-z]) ;; *) die "País de saída inválido: $saida" ;; esac
   if is_running "$CONTAINER" || is_running "$GOST_CONTAINER"; then die "Com a VPN ligada, troque com ./vpn up."; fi
   env_set VPN_MODE "$m"
@@ -802,7 +802,7 @@ cmd_status() {
   info "Estado: $(printf '%s' "$s" | json_get estado) · caminho: $m · país: $(env_get VPN_COUNTRY)"
   info "Saindo por: $(printf '%s' "$s" | json_get ip_saida) ($(printf '%s' "$s" | json_get cidade))"
   info "Mac na rede local: $(mac_ip_q):$(env_get SS_PORT)"
-  case "$s" in *'"tor_conferido":true'*) info "Caminho: Proton só pelo Tor (conferido agora)." ;; esac
+  case "$s" in *'"tor_conferido":true'*) info "Caminho: VPN só pelo Tor (conferido agora)." ;; esac
   local motivo
   motivo="$(printf '%s' "$s" | json_get motivo)"
   if [ -n "$motivo" ]; then info "Motivo: $motivo"; fi

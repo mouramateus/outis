@@ -63,3 +63,12 @@ Assinatura Apple/notarização, App Store, atualização automática, abrir ao i
 ## Nome e símbolo (decisão do dono)
 
 O app se chama **Outis**. O símbolo é o capuz em pontos que se desfaz para a direita, com estrelas e bruma no rosto: `app/icone-1024.png`, gerado por `docs/superpowers/mockups/simbolo.html`. A barra de menus usa o capuz em pixel art de 16×16. Por dentro, a pasta, o comando `./vpn`, o executável e o identificador continuam com os nomes técnicos.
+
+## Rota 1: este Mac (aprovada pelo dono em 2026-11-04)
+
+Duas rotas, dois interruptores no mesmo app: **Rota 1, este Mac** (nativa, sem OrbStack) e **Rota 2, celular** (a cadeia atual, sem mudanças).
+
+- **Caminho:** Tor nativo embutido no app + proxy SOCKS do sistema em todos os serviços de rede. Sem Proton, porque o plano grátis aceita uma conexão por vez. País de saída opcional, com o aviso de sempre.
+- **Alcance:** só apps que respeitam o proxy. A aba "Este Mac" lista o que está incluído e o que não está. Mac inteiro fica fora de escopo.
+- **Conflito:** com o OrbStack em `network_proxy: auto`, o proxy do sistema derruba os containers (medido). Ligar uma rota com a outra ativa mostra o aviso de que a outra vai cair e pede confirmação. Com `network_proxy: none` as duas convivem e o aviso some. O Outis não muda a configuração do OrbStack sozinho.
+- **Segurança:** o proxy só é ativado depois de o Tor provar que funciona. Se o Tor morrer, o proxy fica: navegadores ficam sem internet em vez de sair pelo IP de casa, e o app oferece religar ou desligar.

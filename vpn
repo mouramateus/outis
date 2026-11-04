@@ -15,6 +15,8 @@ CONTAINER="$VPN_PROJECT"
 TOR_CONTAINER="$VPN_PROJECT-tor"
 GOST_CONTAINER="$VPN_PROJECT-gost"
 ESPERA="${VPN_ESPERA:-60}"
+MAC_DIR="$RUN/mac"
+MAC_PORTA=9160
 export VPN_DATA VPN_PROJECT
 
 usage() {
@@ -31,6 +33,8 @@ Uso: ./vpn <comando>
       --so-proton --confirmo-quebrar-anonimato
                                Mac -> Proton, vale só para esta conexão: o Proton vê o IP de casa
   pais <país>                troca o país, mantendo o caminho
+  mac on [--saida xx]        Rota 1: este Mac pelo Tor, nos apps que respeitam o proxy do sistema
+  mac off                    desliga a Rota 1 e restaura o proxy
   caminho <tor|sotor> [--saida xx]   escolhe o caminho da próxima conexão (VPN desligada)
   paises [--json]            lista os países grátis
   status [--json]            caminho, IP e país de saída
@@ -176,6 +180,7 @@ on_term() {
     PERFIS="" compose down --remove-orphans >/dev/null 2>&1 || true
     rm -f "$RUN/modo"
   fi
+  if [ "$(cat "$LOCK/op" 2>/dev/null)" = mac ]; then mac_parar; fi
   exit 143
 }
 
@@ -454,7 +459,7 @@ start() {
 
 # Valida tudo antes de mexer no que está no ar: um erro aqui não derruba nada nem deixa configuração pela metade.
 cmd_up() {
-  local args=() a c="" m="" saida="" confirmo=0 pega_saida=0 f=""
+  local args=() a c="" m="" saida="" confirmo=0 pega_saida=0 f="" derrubar_mac=0
   for a in "$@"; do
     if [ "$pega_saida" = 1 ]; then saida="$a"; pega_saida=0; continue; fi
     case "$a" in
@@ -463,6 +468,7 @@ cmd_up() {
       --so-proton) m=proton ;;
       --confirmo-quebrar-anonimato) confirmo=1 ;;
       --saida) pega_saida=1 ;;
+      --derrubar-mac) derrubar_mac=1 ;;
       *) args+=("$a") ;;
     esac
   done
@@ -485,6 +491,10 @@ cmd_up() {
     ovpn_seguro "$f" || die "O arquivo $(basename "$f") tem diretivas de conexão/proxy; recusado para não sair fora do Tor."
   fi
   need_docker
+  if mac_ativo && orbstack_conflita; then
+    [ "$derrubar_mac" = 1 ] || die "Com o OrbStack como está, se ligar o celular, o Mac vai perder a VPN. Confirme com --derrubar-mac."
+    mac_parar
+  fi
   take_lock up
   [ "$m" = proton ] || env_set VPN_MODE "$m"
   [ "$m" = sotor ] || env_set VPN_COUNTRY "$c"
@@ -493,18 +503,158 @@ cmd_up() {
   [ "$m" = sotor ] || cmd_status_texto_ip
 }
 
+# --- Rota 1: este Mac, por Tor nativo e proxy do sistema (sem OrbStack) ---
+tor_bin() {
+  if [ -n "${VPN_TOR_BIN:-}" ]; then printf '%s\n' "$VPN_TOR_BIN"
+  elif [ -x "$VPN_HOME/tor-nativo/tor" ]; then printf '%s\n' "$VPN_HOME/tor-nativo/tor"
+  else printf '%s\n' "/Applications/Tor Browser.app/Contents/MacOS/Tor/tor"; fi
+}
+
+mac_servicos() { networksetup -listallnetworkservices 2>/dev/null | sed 1d | grep -v '^\*' || true; }
+
+mac_proxy_ligado() {
+  local s
+  while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    if networksetup -getsocksfirewallproxy "$s" 2>/dev/null | grep -q '^Enabled: Yes'; then return 0; fi
+  done <<LISTA
+$(mac_servicos)
+LISTA
+  return 1
+}
+
+mac_tor_vivo() {
+  local pid
+  pid="$(cat "$MAC_DIR/tor.pid" 2>/dev/null || true)"
+  [ -n "$pid" ] && ps -p "$pid" -o command= 2>/dev/null | grep -q 'mac/torrc'
+}
+
+mac_estado() {
+  [ -f "$MAC_DIR/tor.pid" ] || { echo desligada; return 0; }
+  if mac_tor_vivo; then
+    if mac_proxy_ligado; then echo ligada; else echo conectando; fi
+  elif mac_proxy_ligado; then echo erro
+  else echo desligada; fi
+}
+
+mac_ativo() { [ "$(mac_estado)" != desligada ]; }
+celular_ligado() { is_running "$CONTAINER" || is_running "$GOST_CONTAINER"; }
+
+# Com network_proxy: auto o OrbStack segue o proxy do sistema, e os containers ficam sem internet (medido).
+orbstack_conflita() { orb config show 2>/dev/null | grep -q '^network_proxy: auto'; }
+
+mac_proxy_desligar() {
+  local s d
+  while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    networksetup -setsocksfirewallproxystate "$s" off >/dev/null 2>&1 || true
+    d="$MAC_DIR/bypass-$(printf '%s' "$s" | tr -c 'A-Za-z0-9' '_')"
+    if [ -s "$d" ]; then
+      # shellcheck disable=SC2046
+      set -f; networksetup -setproxybypassdomains "$s" $(tr '\n' ' ' < "$d") >/dev/null 2>&1 || true; set +f
+    fi
+  done <<LISTA
+$(cat "$MAC_DIR/servicos" 2>/dev/null || mac_servicos)
+LISTA
+}
+
+mac_parar() {
+  local pid
+  mac_proxy_desligar
+  pid="$(cat "$MAC_DIR/tor.pid" 2>/dev/null || true)"
+  if [ -n "$pid" ] && mac_tor_vivo; then kill "$pid" 2>/dev/null || true; fi
+  rm -rf "$MAC_DIR"
+}
+
+mac_falhar() { mac_parar; die "$1"; }
+
+mac_proxy_ligar() {
+  local s d
+  mac_servicos > "$MAC_DIR/servicos"
+  while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    d="$MAC_DIR/bypass-$(printf '%s' "$s" | tr -c 'A-Za-z0-9' '_')"
+    networksetup -getproxybypassdomains "$s" 2>/dev/null | grep -v "aren't any" > "$d" || true
+    networksetup -setproxybypassdomains "$s" '*.local' 169.254/16 localhost 127.0.0.1 192.168/16 10/8 172.16/12 >/dev/null 2>&1 || true
+    networksetup -setsocksfirewallproxy "$s" 127.0.0.1 "$MAC_PORTA" >/dev/null 2>&1 || mac_falhar "Não consegui ativar o proxy em $s."
+  done < "$MAC_DIR/servicos"
+}
+
+mac_tor_pronto() { grep -q 'Bootstrapped 100' "$MAC_DIR/tor.log" 2>/dev/null; }
+
+cmd_mac_on() {
+  local a saida="" derrubar=0 pega=0 j ip dados tor
+  for a in "$@"; do
+    if [ "$pega" = 1 ]; then saida="$a"; pega=0; continue; fi
+    case "$a" in
+      --saida) pega=1 ;;
+      --derrubar-celular) derrubar=1 ;;
+      *) die "Opção desconhecida: $a" ;;
+    esac
+  done
+  case "${saida:-auto}" in auto|[a-z][a-z]) ;; *) die "País de saída inválido: $saida" ;; esac
+  need_env
+  tor="$(tor_bin)"
+  [ -x "$tor" ] || die "Tor não encontrado. Reinstale o app ou instale o Tor Browser."
+  if docker_ok && celular_ligado && orbstack_conflita; then
+    [ "$derrubar" = 1 ] || die "Com o OrbStack como está, se ligar o Mac, o celular vai perder a VPN. Confirme com --derrubar-celular."
+    cmd_down_interno
+  fi
+  take_lock mac
+  mac_parar
+  (umask 077; mkdir -p "$MAC_DIR" "$SECRETS/mac-tor")
+  chmod 700 "$SECRETS/mac-tor"
+  dados="$SECRETS/mac-tor"
+  {
+    printf 'SocksPort 127.0.0.1:%s\n' "$MAC_PORTA"
+    printf 'DataDirectory "%s"\n' "$dados"
+    printf 'Log notice file "%s"\n' "$MAC_DIR/tor.log"
+    printf 'ClientOnly 1\n'
+    [ -f "$(dirname "$tor")/geoip" ] && printf 'GeoIPFile "%s"\nGeoIPv6File "%s"\n' "$(dirname "$tor")/geoip" "$(dirname "$tor")/geoip6"
+    if [ -n "$saida" ] && [ "$saida" != auto ]; then printf 'ExitNodes {%s}\nStrictNodes 1\n' "$saida"; fi
+  } > "$MAC_DIR/torrc"
+  printf '%s\n' "${saida:-auto}" > "$MAC_DIR/saida"
+  nohup "$tor" -f "$MAC_DIR/torrc" >/dev/null 2>&1 &
+  echo $! > "$MAC_DIR/tor.pid"
+  info "Ligando este Mac pelo Tor... pode levar até 2 min."
+  info "etapa: tor"
+  esperar "$ESPERA" mac_tor_pronto || mac_falhar "O Tor não conseguiu conectar. Tente de novo."
+  # O proxy só entra depois de o Tor provar que funciona: nada de sites sem internet nem saída errada.
+  info "etapa: conferindo"
+  j="$(curl -s -m 40 --socks5-hostname "127.0.0.1:$MAC_PORTA" https://check.torproject.org/api/ip 2>/dev/null || true)"
+  case "$j" in *'"IsTor":true'*) ;; *) mac_falhar "Não consegui confirmar a saída pelo Tor." ;; esac
+  ip="$(printf '%s' "$j" | sed -nE 's/.*"IP":"([^"]*)".*/\1/p')"
+  printf '%s\n' "$ip" > "$MAC_DIR/ip"
+  mac_proxy_ligar
+  info "Este Mac saindo pelo Tor: $ip"
+}
+
+cmd_mac() {
+  local sub="${1:-}"
+  [ $# -gt 0 ] && shift
+  case "$sub" in
+    on) cmd_mac_on "$@" ;;
+    off) take_lock mac; mac_parar; info "Desligado." ;;
+    *) die "Uso: ./vpn mac on [--saida xx] | mac off" ;;
+  esac
+}
+
 cmd_status_texto_ip() {
   local j
   j="$(public_ip_json)"
   info "Saindo por: $(printf '%s' "$j" | json_get public_ip) ($(printf '%s' "$j" | json_get city), $(printf '%s' "$j" | json_get country))"
 }
 
-cmd_down() {
-  need_env; need_docker
-  take_lock down
+cmd_down_interno() {
   stop_vigia
   rm -f "$RUN/evento.txt" "$RUN/erro.json" "$RUN/modo"
   PERFIS="" compose down --remove-orphans >/dev/null 2>&1 || true
+}
+
+cmd_down() {
+  need_env; need_docker
+  take_lock down
+  cmd_down_interno
   info "Desligada."
 }
 
@@ -587,6 +737,7 @@ status_json() {
   set +e
   local estado=desligada aviso="" m pais="" cc="" porta=8388 cfg=1 ip="" cidade="" pais_ip="" desde="" conferido=false
   local cod_erro="" msg_erro="" motivo="" motivo_cod="" op saida="" cred=false mac rede c j
+  local m_est m_ip="" m_saida="" conflito=false
   [ -f "$ENV_FILE" ] || cfg=0
   m="$(mode)"
   pais="$(env_get VPN_COUNTRY)"; pais="${pais:-United States}"
@@ -633,8 +784,13 @@ status_json() {
       cod_erro="$(json_get codigo < "$RUN/erro.json")"; msg_erro="$(json_get mensagem < "$RUN/erro.json")"
     fi
   fi
-  printf '{"estado":"%s","modo":"%s","pais":%s,"codigo":%s,"ip_saida":%s,"cidade":%s,"pais_ip":%s,"desde":%s,"ip_mac":%s,"rede":%s,"porta":%s,"aviso":%s,"codigo_erro":%s,"mensagem_erro":%s,"operacao":%s,"motivo_codigo":%s,"motivo":%s,"credenciais":%s,"saida_tor":%s,"tor_conferido":%s}\n' \
-    "$estado" "$m" "$(jstr "$pais")" "$(jstr "$cc")" "$(jstr "$ip")" "$(jstr "$cidade")" "$(jstr "$pais_ip")" "$(jnum "$desde")" "$(jstr "$mac")" "$(jstr "$rede")" "$porta" "$(jstr "$aviso")" "$(jstr "$cod_erro")" "$(jstr "$msg_erro")" "$(jstr "$op")" "$(jstr "$motivo_cod")" "$(jstr "$motivo")" "$cred" "$(jstr "$saida")" "$conferido"
+  m_est="$(mac_estado)"
+  if [ "$m_est" != desligada ]; then
+    m_ip="$(cat "$MAC_DIR/ip" 2>/dev/null)"; m_saida="$(cat "$MAC_DIR/saida" 2>/dev/null)"
+  fi
+  if [ "$cfg" = 1 ] && [ "$aviso" != orbstack ] && orbstack_conflita; then conflito=true; fi
+  printf '{"mac_estado":"%s","mac_ip":%s,"mac_saida":%s,"conflito_orbstack":%s,"estado":"%s","modo":"%s","pais":%s,"codigo":%s,"ip_saida":%s,"cidade":%s,"pais_ip":%s,"desde":%s,"ip_mac":%s,"rede":%s,"porta":%s,"aviso":%s,"codigo_erro":%s,"mensagem_erro":%s,"operacao":%s,"motivo_codigo":%s,"motivo":%s,"credenciais":%s,"saida_tor":%s,"tor_conferido":%s}\n' \
+    "$m_est" "$(jstr "$m_ip")" "$(jstr "$m_saida")" "$conflito" "$estado" "$m" "$(jstr "$pais")" "$(jstr "$cc")" "$(jstr "$ip")" "$(jstr "$cidade")" "$(jstr "$pais_ip")" "$(jnum "$desde")" "$(jstr "$mac")" "$(jstr "$rede")" "$porta" "$(jstr "$aviso")" "$(jstr "$cod_erro")" "$(jstr "$msg_erro")" "$(jstr "$op")" "$(jstr "$motivo_cod")" "$(jstr "$motivo")" "$cred" "$(jstr "$saida")" "$conferido"
 }
 
 cmd_status() {
@@ -765,6 +921,7 @@ main() {
     up) cmd_up "$@" ;;
     pais|país) [ -n "${1:-}" ] || die "Uso: ./vpn pais <país>. Veja ./vpn paises"; cmd_up "$@" ;;
     caminho) cmd_caminho "$@" ;;
+    mac) cmd_mac "$@" ;;
     paises|países) cmd_paises "$@" ;;
     status) cmd_status "$@" ;;
     celular) cmd_celular "$@" ;;

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Grava o log do bootstrap (ou não) e fica no ar como um tor de verdade.
+while [ $# -gt 0 ]; do [ "$1" = -f ] && C="$2"; shift; done
+L="$(sed -n 's/^Log notice file //p' "$C" | tr -d '"')"
+printf '%s\n' "${FAKE_TOR_LOG-Bootstrapped 100% (done)}" > "$L"
+sleep 30 & S=$!; trap "kill $S" TERM; wait $S

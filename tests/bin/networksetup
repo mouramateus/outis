@@ -1,2 +1,10 @@
 #!/bin/bash
-printf 'Hardware Port: Wi-Fi\nDevice: en0\nEthernet Address: aa\n\n'
+printf 'networksetup %s\n' "$*" >> "$FAKE_LOG"
+case "$1" in
+  -listallhardwareports) printf 'Hardware Port: Wi-Fi\nDevice: en0\nEthernet Address: aa\n\n' ;;
+  -listallnetworkservices) printf 'An asterisk (*) denotes that a network service is disabled.\nWi-Fi\nUSB LAN\n*Bluetooth PAN\n' ;;
+  -getsocksfirewallproxy) if [ -f "$FAKE_PROXY" ]; then printf 'Enabled: Yes\nServer: 127.0.0.1\nPort: 9160\n'; else printf 'Enabled: No\nServer: \nPort: 0\n'; fi ;;
+  -setsocksfirewallproxy) : > "$FAKE_PROXY" ;;
+  -setsocksfirewallproxystate) [ "$3" = off ] && rm -f "$FAKE_PROXY" ;;
+  -getproxybypassdomains) printf '*.local\n169.254/16\n' ;;
+esac

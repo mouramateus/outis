@@ -1,0 +1,3 @@
+#!/bin/bash
+printf 'curl %s\n' "$*" >> "$FAKE_LOG"
+printf '%s\n' "${FAKE_CURL-{\"IsTor\":true,\"IP\":\"5.5.5.5\"\}}"

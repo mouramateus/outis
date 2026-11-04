@@ -8,8 +8,8 @@ setup_env() {
   export VPN_DATA="$T/data" VPN_KC_SERVICE=vpn-pais-teste VPN_PROJECT=vpn-teste
   export FAKE_KC="$T/kc" FAKE_LOG="$T/log"
   export PATH="$ROOT/tests/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-  export VPN_ESPERA=0 VPN_SEM_VIGIA=1
-  unset FAKE_TOR_RUNNING FAKE_IPINFO FAKE_IFCONFIG FAKE_DOCKER_DOWN FAKE_DOCKER_HANG FAKE_RUNNING FAKE_HEALTH FAKE_PUBLICIP FAKE_NETSTAT FAKE_LOGS FAKE_KC_FAIL FAKE_SEM_REDE FAKE_COMPOSE_HANG
+  export VPN_ESPERA=0 VPN_SEM_VIGIA=1 FAKE_PROXY="$T/proxy" VPN_TOR_BIN="$ROOT/tests/bin/tor-falso"
+  unset FAKE_CURL FAKE_TOR_LOG FAKE_ORB_PROXY FAKE_TOR_RUNNING FAKE_IPINFO FAKE_IFCONFIG FAKE_DOCKER_DOWN FAKE_DOCKER_HANG FAKE_RUNNING FAKE_HEALTH FAKE_PUBLICIP FAKE_NETSTAT FAKE_LOGS FAKE_KC_FAIL FAKE_SEM_REDE FAKE_COMPOSE_HANG
   mkdir -p "$VPN_DATA/secrets/ovpn" "$VPN_DATA/secrets/run" "$FAKE_KC"
   : > "$FAKE_LOG"
   printf 'SS_PASSWORD=abc123\nSS_PORT=8388\nVPN_COUNTRY=United States\nVPN_MODE=tor\n' > "$VPN_DATA/.env"
@@ -31,5 +31,6 @@ jqr() { /usr/bin/jq -r "$1"; }
 t() {
   NOME="$1"; setup_env
   "$1"
+  pkill -f "$VPN_DATA" 2>/dev/null
   rm -rf "$T"
 }

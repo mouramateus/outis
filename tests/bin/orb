@@ -1,0 +1,2 @@
+#!/bin/bash
+printf 'network_proxy: %s\n' "${FAKE_ORB_PROXY:-auto}"

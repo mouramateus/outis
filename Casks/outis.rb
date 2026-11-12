@@ -1,6 +1,6 @@
 cask "outis" do
   version "1.0.0"
-  sha256 "SHA256_PENDENTE"
+  sha256 "11f8dab67600a73e4ad4dfe2e5335306089cfa9b9ec7866853019fea20e97e73"
 
   url "https://github.com/mouramateus/outis/releases/download/v#{version}/Outis-#{version}.zip"
   name "Outis"

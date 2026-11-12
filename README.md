@@ -1,82 +1,166 @@
 # Outis
 
-VPN por país para o celular, rodando no Mac. *Outis* é "Ninguém" em grego: o nome que Odisseu dá ao ciclope.
+A per-country VPN for your phone, running on your Mac. *Outis* means "Nobody" in Greek: the name Odysseus gives the Cyclops.
 
-O celular conecta no Mac (app **Outline**) e sai na internet por outro país, com **Tor** e **ProtonVPN grátis** rodando no Mac.
+Your phone connects to your Mac with the **Outline** app and reaches the internet from another country, through **Tor** and **ProtonVPN Free** running on the Mac. The Mac itself can also browse through Tor.
 
-Três caminhos:
+> The app and the command line are in Brazilian Portuguese.
 
-    Tor + VPN (padrão):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─OpenVPN TCP─▶ Proton ─▶ internet
-    Só Tor (experimental):  iPhone (Outline) ─▶ Mac :8388 ─▶ Tor ─▶ internet
-    Só VPN:              iPhone (Outline) ─▶ Mac :8388 ─▶ Proton ─▶ internet
+## At a glance
 
-No padrão, o Proton só vê um nó de saída do Tor, nunca o IP de casa, e os sites veem um IP do Proton no país escolhido. Custo: fica lento (medido em 2026-11-03: ~95 KB/s e ~4 s para abrir uma página).
-
-**Só VPN** quebra o anonimato da conta para sempre: o Proton passa a ver o IP de casa. Por isso exige confirmação e vale para uma conexão só. Ele nunca foi testado com a conta real, de propósito.
-
-**Só Tor** não tem UDP: é experimental até ser testado com o Outline num iPhone de verdade.
-
-## App
-
-    app/build.sh       # compila (Apple Silicon + Intel), embute o CLI e instala em /Applications
-
-O app **Outis** (macOS 14 ou mais novo) tem janela e ícone na barra de menus, e usa o CLI embutido nele, sem depender do SSD. Só foi testado no macOS 27. Precisa do OrbStack e, para a conta, do Tor Browser. Na primeira abertura, permita as notificações.
-
-Fechar a janela ou sair (⌘Q) **não** desliga a VPN.
-
-## Duas rotas
-
-- **Rota 2, celular:** a cadeia acima, no OrbStack.
-- **Rota 1, este Mac (aba "Este Mac"):** Tor nativo embutido no app e proxy do sistema, sem OrbStack nem conta do Proton. Vale só para apps que respeitam o proxy: navegadores entram; Terminal, Docker, Mail, chamadas e jogos não. O proxy só liga depois de o Tor provar que funciona. Se o Tor morrer, ele fica ligado de propósito: os navegadores ficam sem internet em vez de sair pelo IP de casa, e o app oferece religar ou desligar.
-
-Na tela inicial e no menu da barra, o seletor **Celular · Este Mac · Os dois** define para quem o ligar e o desligar apontam, e o botão sempre diz o que vai fazer. Enquanto uma ação roda, o app mostra qual é, mesmo que tenha vindo do terminal.
-
-Com o OrbStack em `network_proxy: auto`, o proxy do sistema tira a internet dos containers, então as duas rotas não funcionam juntas: o Outis avisa qual vai cair e pede confirmação. Com `orb config set network_proxy none` elas convivem e o aviso some. Essa mudança vale para todo o OrbStack.
-
-## Terminal
-
-Dados e segredos ficam em `~/Library/Application Support/vpn-pais`; as credenciais OpenVPN, no Keychain.
-
-    ./vpn setup-tor                     # credenciais OpenVPN e .ovpn (GNU/Linux, TCP, servidores grátis)
-    ./vpn up eua                        # liga (lembra país e caminho)
-    ./vpn pais japao                    # troca de país, sem reiniciar o Tor
-    ./vpn up --so-tor [--saida de]      # Só Tor; --saida fixa o país de saída
-    ./vpn mac on [--saida de]           # Rota 1: este Mac pelo Tor
-    ./vpn mac off                       # desliga a Rota 1 e restaura o proxy
-    ./vpn status                        # estado, IP e caminho conferido
-    ./vpn celular                       # chave e QR code para o Outline
-    ./vpn down                          # desliga
-
-Testes: `/bin/bash tests/run.sh` e `cd app && swift test`.
-
-## O que está protegido (e o que não está)
-
-Protegido, e conferido em 2026-11-03:
-- **Kill switch do lado do Mac:** se o túnel cair, o tráfego do celular que chega ao Mac não sai pelo IP de casa (gluetun bloqueia tudo por padrão, IPv4 e IPv6; DNS pelo túnel).
-- **Modo Tor confere o caminho:** ao ligar e a cada 5 s, o `./vpn` verifica que a conexão com o Proton só passa pelo Tor; se aparecer conexão direta, desliga tudo.
-- **Troca de rede desliga tudo:** a porta 8388 só abre no IP do Mac na rede em que você ligou. Se a rede ou o IP mudarem (café, escritório, outro Wi-Fi), um vigia derruba a VPN e avisa por notificação. Nada religa sozinho, nem depois de reiniciar o Mac.
-- **Segredos fora do `docker inspect`:** credenciais e senha do celular entram no container como arquivos (`/run/secrets`), não como variáveis.
-- **Painel do gluetun fechado:** quem tem a chave do celular não consegue desligar a VPN pelo proxy.
-- **Tor estável:** o estado do Tor fica num volume, então ele mantém os mesmos nós de entrada (menos exposição) e trocar de país não reinicia o Tor.
-
-**Não** protegido:
-- **Este Mac não passa pela VPN.** Só o celular conectado no Outline.
-- **O celular não tem kill switch próprio.** Se o Mac dormir, a VPN cair ou a rede mudar, o celular volta a navegar pela internet de casa.
-  - Android: Configurações → VPN → Outline → ative "VPN sempre ativa" e "Bloquear conexões sem VPN".
-  - iPhone: não há bloqueio garantido; confira o ícone do Outline antes de usar.
-- **Identidade:** o Proton só não vê seu IP se a conta for usada **exclusivamente pelo Tor** (cadastro, painel e conexões). Sem Só VPN com essa conta, sem abrir o painel num navegador comum.
-- **O que o celular entrega por si só:** fuso horário, idioma, GPS e contas logadas continuam dizendo quem e onde você está. IPv6 do celular não foi testado.
-- Streaming (Netflix etc.) costuma bloquear IPs de VPN grátis. Modo Tor é lento (~95 KB/s).
-
-## Problemas comuns
-
-| Sintoma | O que fazer |
+| | |
 |---|---|
-| `Sem arquivo .ovpn de <país>` | Baixe o .ovpn TCP grátis desse país no painel (pelo Tor Browser) e importe. |
-| Modo `--tor` não conecta | O circuito do Tor pode estar ruim: rode o mesmo comando de novo (sorteia outro servidor). |
-| `A rede do Mac mudou: VPN desligada` | Normal ao trocar de Wi-Fi. Rode `./vpn up` de novo e, se o IP do Mac mudou, atualize a chave no Outline (`./vpn celular`). |
-| `Conexão fora do Tor detectada` | Algo tentou falar com o Proton sem o Tor; tudo foi desligado. Rode `./vpn up` de novo; se repetir, troque o arquivo .ovpn daquele país. |
-| `O túnel não conectou` | Tente de novo ou outro país. |
-| Celular conecta mas não navega | `./vpn status`; se o IP do Mac mudou, `./vpn celular` e troque a chave no Outline. |
-| `Outro aparelho já usa sua conta` | O plano grátis permite 1 conexão: desconecte o outro. |
-| `./vpn logs` | Log do túnel, ao vivo. |
+| Platform | macOS 14 or newer, Apple Silicon and Intel (only tested on macOS 27) |
+| Interface | Window app plus a menu bar icon, with a full command line (`vpn`) embedded in it |
+| Phone app | [Outline](https://getoutline.org) (iPhone and Android), connected over Shadowsocks on port 8388 |
+| Requirements | `tor` from Homebrew for the This Mac route; [OrbStack](https://orbstack.dev) for the phone route; [Tor Browser](https://www.torproject.org) to create and manage the Proton account |
+| VPN provider | ProtonVPN Free, over OpenVPN TCP |
+| Free countries | United States, Canada, Mexico, Netherlands, Switzerland, Norway, Poland, Romania, Japan, Singapore |
+| Data | `~/Library/Application Support/vpn-pais`; OpenVPN credentials in the Keychain |
+| Speed | Slow in the default path: about 95 KB/s and 4 s per page (measured on 2026-11-03) |
+
+## Install
+
+Requires the Xcode Command Line Tools (`xcode-select --install`) with Swift 6, and [Homebrew](https://brew.sh) for Tor. Outis is built on your machine, so macOS does not block it even though it is not signed.
+
+With Homebrew:
+
+    brew tap mouramateus/outis https://github.com/mouramateus/outis
+    brew install outis
+    ln -sfn "$(brew --prefix)/opt/outis/Outis.app" /Applications/Outis.app
+
+This also installs `tor` and `qrencode` from Homebrew and an `outis` command.
+
+Or from the repository:
+
+    git clone https://github.com/mouramateus/outis.git
+    cd outis
+    ./install.sh
+
+Then install the requirements and open the app:
+
+    brew install --cask orbstack tor-browser
+
+On first launch, allow notifications: Outis uses them to tell you when it shut the VPN down.
+
+## How it works
+
+Three paths for the phone:
+
+    Tor + VPN (default):     phone (Outline) ─▶ Mac :8388 ─▶ Tor ─OpenVPN TCP─▶ Proton ─▶ internet
+    Tor only (experimental): phone (Outline) ─▶ Mac :8388 ─▶ Tor ─▶ internet
+    VPN only:                phone (Outline) ─▶ Mac :8388 ─▶ Proton ─▶ internet
+
+- **Tor + VPN** is the default. Proton only ever sees a Tor exit node, never your home IP, and websites see a Proton IP in the country you picked.
+- **Tor only** needs no account and lets you pin the exit country. It has no UDP, so it stays experimental until tested with Outline on a real iPhone.
+- **VPN only** breaks the account's anonymity for good: Proton sees your home IP. It requires typing a confirmation, applies to one connection only and is never saved.
+
+### Two routes
+
+- **Phone route:** the chain above, in containers on OrbStack ([gluetun](https://github.com/qdm12/gluetun), Tor and [gost](https://github.com/go-gost/gost)).
+- **This Mac route** ("Este Mac" tab): native Tor (Homebrew's `tor`, or Tor Browser's as a fallback) plus the system SOCKS proxy, with no OrbStack and no Proton account. It only covers apps that honor the system proxy: browsers do; Terminal, Docker, Mail, calls and games do not. The proxy is only turned on after Tor proves it works. If Tor dies, the proxy stays on on purpose: browsers lose internet instead of leaking your home IP, and the app offers to restart or turn it off.
+
+On the home screen and in the menu bar, the **Celular · Este Mac · Os dois** (Phone · This Mac · Both) selector sets what the on/off button controls, and the button always says what it is about to do. While an action runs, the app shows which one, even if it came from the terminal.
+
+If OrbStack is set to `network_proxy: auto`, the system proxy cuts the containers off the internet, so the two routes cannot run together: Outis warns which one will drop and asks for confirmation. With `orb config set network_proxy none` they coexist and the warning disappears. That setting applies to all of OrbStack.
+
+Closing the window or quitting (⌘Q) does **not** turn the VPN off.
+
+## The app
+
+| Tab | What it does |
+|---|---|
+| Início (Home) | Status, exit country and IP on a world map, route selector and the on/off button |
+| Celular (Phone) | Outline access key and QR code, the Mac's IP and network, how to connect, active phone connections |
+| Este Mac (This Mac) | Turns the This Mac route on and off, with an optional exit country |
+| Conta (Account) | Stores the OpenVPN credentials in the Keychain and imports the `.ovpn` files |
+| Avançado (Advanced) | Phone path (Tor + VPN, Tor only, or VPN only after typing `ENTENDO`), exit country for Tor only, phone port and network-change behavior |
+| Logs | Live tunnel log |
+
+## First setup
+
+1. Create a free Proton account **using Tor Browser only**, and only ever open the Proton dashboard from Tor Browser.
+2. In the dashboard, copy the OpenVPN/IKEv2 username and password, and download the free **TCP** `.ovpn` files (GNU/Linux) for the countries you want.
+3. In the **Conta** tab (or with `vpn setup-tor`), save the credentials and import the files. By default they are read from `~/Downloads`.
+4. Turn the VPN on, open the **Celular** tab and scan the QR code with Outline.
+
+## Command line
+
+The same CLI the app uses. Installed with Homebrew it is `outis`; from the repository it is `./vpn`; inside the app it lives in `Outis.app/Contents/Resources/cli/vpn`. The examples below use `vpn`.
+
+    vpn init                            # creates the config (phone password)
+    vpn setup-tor                       # stores OpenVPN credentials and imports .ovpn files
+    vpn importar-ovpn [folders]         # imports free TCP .ovpn files (default: ~/Downloads)
+    vpn up eua                          # turns on (remembers country and path)
+    vpn pais japao                      # switches country without restarting Tor
+    vpn up --so-tor [--saida de]        # Tor only; --saida pins the exit country
+    vpn up --so-proton --confirmo-quebrar-anonimato   # VPN only, this connection only
+    vpn caminho <tor|sotor>             # picks the path for the next connection
+    vpn mac on [--saida de]             # This Mac route through Tor
+    vpn mac off                         # turns it off and restores the proxy
+    vpn paises [--json]                 # lists the free countries
+    vpn status [--json]                 # state, IP and verified path
+    vpn celular [--json]                # Outline key and QR code
+    vpn conexoes [--json]               # active connections on the phone port
+    vpn down                            # turns off
+    vpn logs                            # tunnel log
+
+Country names: `eua`, `canada`, `mexico`, `holanda`, `suica`, `noruega`, `polonia`, `romenia`, `japao`, `singapura` (two-letter codes such as `us`, `jp` and `ca` also work).
+
+## What is protected (and what is not)
+
+Protected, verified on 2026-11-03:
+
+- **Kill switch on the Mac side:** if the tunnel drops, phone traffic reaching the Mac does not leave through your home IP. gluetun blocks everything by default, IPv4 and IPv6, with DNS through the tunnel.
+- **Tor + VPN checks the path:** on start and every 5 seconds, Outis checks that the connection to Proton only goes through Tor. If a direct connection appears, everything is shut down.
+- **Network change shuts everything down:** port 8388 only listens on the Mac's IP in the network where you turned it on. If the network or IP changes (café, office, another Wi-Fi), a watcher brings the VPN down and sends a notification. Nothing turns back on by itself, not even after a reboot.
+- **Secrets stay out of `docker inspect`:** credentials and the phone password enter the containers as files (`/run/secrets`), not environment variables.
+- **gluetun control panel locked:** anyone with the phone key cannot turn the VPN off through the proxy.
+- **Stable Tor:** Tor state lives in a volume, so it keeps the same entry guards and switching countries does not restart it.
+
+**Not** protected:
+
+- **In the phone route, the Mac itself does not go through the VPN.** Only the phone connected through Outline does. Use the This Mac route for the Mac's browsers.
+- **The phone has no kill switch of its own.** If the Mac sleeps, the VPN drops or the network changes, the phone falls back to your home connection.
+  - Android: Settings → VPN → Outline → turn on "Always-on VPN" and "Block connections without VPN".
+  - iPhone: there is no guaranteed block; check the Outline icon before using it.
+- **Identity:** Proton only stays blind to your IP if the account is used **exclusively through Tor** (sign-up, dashboard and connections). No VPN only with that account, and never open the dashboard in a regular browser.
+- **What the phone gives away on its own:** time zone, language, GPS and logged-in accounts still tell who and where you are. The phone's IPv6 has not been tested.
+- Streaming services usually block free VPN IPs.
+
+## Troubleshooting
+
+| Symptom | What to do |
+|---|---|
+| `Sem arquivo .ovpn de <país>` (no .ovpn for a country) | Download that country's free TCP `.ovpn` from the dashboard (in Tor Browser) and import it. |
+| Tor + VPN does not connect | The Tor circuit may be bad: run the same command again (it picks another server). |
+| `A rede do Mac mudou: VPN desligada` (network changed) | Expected when you switch Wi-Fi. Turn it on again and, if the Mac's IP changed, update the key in Outline (`vpn celular`). |
+| `Conexão fora do Tor detectada` (connection outside Tor) | Something tried to reach Proton without Tor, so everything was shut down. Turn it on again; if it repeats, replace that country's `.ovpn` file. |
+| `O túnel não conectou` (tunnel did not connect) | Try again or another country. |
+| Phone connects but does not browse | `vpn status`; if the Mac's IP changed, run `vpn celular` and replace the key in Outline. |
+| `Outro aparelho já usa sua conta` (another device uses your account) | The free plan allows one connection: disconnect the other device. |
+
+## Development
+
+    app/build.sh [--sem-instalar] [--universal]   # builds the app, embeds the CLI and installs it in /Applications
+                                                  # (--universal: Apple Silicon + Intel, needs full Xcode)
+    /bin/bash tests/run.sh             # CLI tests (with fake system commands in tests/bin)
+    cd app && swift test               # app tests
+
+Layout:
+
+- `vpn`: the CLI (bash 3.2, the version that ships with macOS)
+- `compose.yaml`, `tor/`, `config/`: containers for the phone route
+- `app/`: the SwiftUI app (`VPNCore` talks to the CLI, `VPNPais` is the interface)
+- `install.sh`, `Formula/outis.rb`: installer and Homebrew formula (this repository is its own tap)
+- `docs/`: design spec, plan and approved mockups
+
+## License
+
+MIT, see [LICENSE](LICENSE).
+
+## Fair use and disclaimers
+
+- Proton's Terms of Service forbid holding multiple free accounts and may suspend them. Outis supports one account on purpose.
+- Outis is not affiliated with or endorsed by the Tor Project, Proton AG or Jigsaw (Outline).
+- Use it within the law and the terms of the services you access.

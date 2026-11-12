@@ -1,4 +1,4 @@
-// Gera dist/AppIcon.icns a partir de icone-1024.png, no recorte arredondado padrão do macOS.
+// Gera AppIcon.icns a partir de icone-1024.png, no recorte arredondado padrão do macOS. Uso: swift make-icon.swift <pasta>
 import AppKit
 
 let dist = CommandLine.arguments[1]

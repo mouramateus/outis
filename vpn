@@ -507,6 +507,7 @@ cmd_up() {
 tor_bin() {
   if [ -n "${VPN_TOR_BIN:-}" ]; then printf '%s\n' "$VPN_TOR_BIN"
   elif [ -x "$VPN_HOME/tor-nativo/tor" ]; then printf '%s\n' "$VPN_HOME/tor-nativo/tor"
+  elif command -v tor >/dev/null 2>&1; then command -v tor
   else printf '%s\n' "/Applications/Tor Browser.app/Contents/MacOS/Tor/tor"; fi
 }
 

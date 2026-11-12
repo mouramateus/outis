@@ -2,7 +2,13 @@
 # vpn: o celular sai pela internet de outro país, com Tor e ProtonVPN grátis rodando no Mac. Uso: ./vpn help
 # Sem dependências além do macOS e do Docker (OrbStack); compatível com o bash 3.2.
 
-VPN_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Segue links simbólicos (ex.: o comando `outis` instalado pelo Homebrew aponta para cá).
+_src="${BASH_SOURCE[0]}"
+while [ -L "$_src" ]; do
+  _dir="$(cd "$(dirname "$_src")" && pwd)"; _src="$(readlink "$_src")"
+  case "$_src" in /*) ;; *) _src="$_dir/$_src" ;; esac
+done
+VPN_HOME="$(cd "$(dirname "$_src")" && pwd)"; unset _src _dir
 # Dados (configuração e segredos) no disco interno, onde as permissões valem; o código pode ficar em qualquer lugar.
 VPN_DATA="${VPN_DATA:-$HOME/Library/Application Support/vpn-pais}"
 ENV_FILE="$VPN_DATA/.env"

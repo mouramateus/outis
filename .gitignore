@@ -4,3 +4,4 @@ secrets/
 .superpowers/
 app/.build/
 app/dist/
+dist/

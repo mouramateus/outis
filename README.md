@@ -13,7 +13,7 @@ Your phone connects to your Mac with the **Outline** app and reaches the interne
 | Platform | macOS 14 or newer, Apple Silicon and Intel (only tested on macOS 27) |
 | Interface | Window app plus a menu bar icon, with a full command line (`vpn`) embedded in it |
 | Phone app | [Outline](https://getoutline.org) (iPhone and Android), connected over Shadowsocks on port 8388 |
-| Requirements | `tor` from Homebrew for the This Mac route; [OrbStack](https://orbstack.dev) for the phone route; [Tor Browser](https://www.torproject.org) to create and manage the Proton account |
+| Requirements | `tor` from Homebrew for the This Mac route (installed automatically); [OrbStack](https://orbstack.dev) for the phone route; [Tor Browser](https://www.torproject.org) to create and manage the Proton account |
 | VPN provider | ProtonVPN Free, over OpenVPN TCP |
 | Free countries | United States, Canada, Mexico, Netherlands, Switzerland, Norway, Poland, Romania, Japan, Singapore |
 | Data | `~/Library/Application Support/vpn-pais`; OpenVPN credentials in the Keychain |
@@ -21,27 +21,26 @@ Your phone connects to your Mac with the **Outline** app and reaches the interne
 
 ## Install
 
-Requires the Xcode Command Line Tools (`xcode-select --install`) with Swift 6, and [Homebrew](https://brew.sh) for Tor. Outis is built on your machine, so macOS does not block it even though it is not signed.
-
-With Homebrew:
+With [Homebrew](https://brew.sh) (this repository is its own tap):
 
     brew tap mouramateus/outis https://github.com/mouramateus/outis
-    brew install outis
-    ln -sfn "$(brew --prefix)/opt/outis/Outis.app" /Applications/Outis.app
+    brew install --cask mouramateus/outis/outis
 
-This also installs `tor` and `qrencode` from Homebrew and an `outis` command.
-
-Or from the repository:
+Or from a clone of the repository:
 
     git clone https://github.com/mouramateus/outis.git
     cd outis
     ./install.sh
+
+Both put `Outis.app` in `/Applications`, add an `outis` command and install `tor` and `qrencode` from Homebrew. The app is ad-hoc signed, not notarized by Apple: both installers clear the quarantine flag so macOS opens it. If you download the zip from Releases by hand, run `xattr -dr com.apple.quarantine /Applications/Outis.app` once.
 
 Then install the requirements and open the app:
 
     brew install --cask orbstack tor-browser
 
 On first launch, allow notifications: Outis uses them to tell you when it shut the VPN down.
+
+To uninstall: `brew uninstall --cask outis` (add `--zap` to also delete your data and credentials folder).
 
 ## How it works
 
@@ -86,7 +85,7 @@ Closing the window or quitting (⌘Q) does **not** turn the VPN off.
 
 ## Command line
 
-The same CLI the app uses. Installed with Homebrew it is `outis`; from the repository it is `./vpn`; inside the app it lives in `Outis.app/Contents/Resources/cli/vpn`. The examples below use `vpn`.
+The same CLI the app uses. Once installed it is `outis`; from the repository it is `./vpn`; inside the app it lives in `Outis.app/Contents/Resources/cli/vpn`. The examples below use `vpn`.
 
     vpn init                            # creates the config (phone password)
     vpn setup-tor                       # stores OpenVPN credentials and imports .ovpn files
@@ -142,8 +141,9 @@ Protected, verified on 2026-11-03:
 
 ## Development
 
-    app/build.sh [--sem-instalar] [--universal]   # builds the app, embeds the CLI and installs it in /Applications
-                                                  # (--universal: Apple Silicon + Intel, needs full Xcode)
+    ./install.sh --compilar            # builds from source and installs (needs full Xcode)
+    app/build.sh [--sem-instalar] [--universal]   # builds the app and embeds the CLI
+    scripts/release.sh                 # universal zip for a GitHub Release, plus its sha256 for the cask
     /bin/bash tests/run.sh             # CLI tests (with fake system commands in tests/bin)
     cd app && swift test               # app tests
 
@@ -152,7 +152,7 @@ Layout:
 - `vpn`: the CLI (bash 3.2, the version that ships with macOS)
 - `compose.yaml`, `tor/`, `config/`: containers for the phone route
 - `app/`: the SwiftUI app (`VPNCore` talks to the CLI, `VPNPais` is the interface)
-- `install.sh`, `Formula/outis.rb`: installer and Homebrew formula (this repository is its own tap)
+- `install.sh`, `Casks/outis.rb`, `scripts/release.sh`: installer, Homebrew cask (this repository is its own tap) and release packaging
 - `docs/`: design spec, plan and approved mockups
 
 ## License
